@@ -35,4 +35,4 @@ efarmosoume thn h1 alla k idia gia thn h2. An isxuei auto, afou elegxthei pws ei
 duadas twn grammwn opou entopisthke isothta. Auto ginetai me th vohtheia twn antistoixismenwn se autous pinakes pou kratane ta row-ids. H domh ths listas
 opou kataxwrountai oles oi zeukseis apoteleitai apo lista me structs (struct result) opou periexetai enas buffer apo tupples megethous 1MB kai molis
 gemizei to trexon dhmiourgeitai epomeno struct.
-Ta apotelesmata tha ektupwnontai sto arxeio eksodou "output.txt" (zeugh row-ids). Ektupwnontai akoma xronoi ekteleshs kai to plithos twn joins pou eginan.
+Ta apotelesmata tha ektupwnontai sto arxeio eksodou "output.txt" (zeugh row-ids). Ektupwnontai akoma xronoi ekteleshs kai to plithos twn joins pou eginan.    
