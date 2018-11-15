@@ -21,8 +21,8 @@ int main(void){
     int Rrows = sizeof(S)/sizeof(int);*/
 
     srand(time(NULL));
-    int Rrows = 300000;
-    int Srows = 200000;
+    int Rrows = 30000;
+    int Srows = 20000;
     int R[Rrows];
     int S[Srows];
     for(i = 0; i < Rrows; i++){
@@ -61,6 +61,11 @@ int main(void){
     fprintf(fp,"JOINS\n\nRrows\tSrows\n");
     printbuff(res, fp, 0);
     freebuff(res);
+
+    fclose(fp);
+
+    free(relR.tuples);
+    free(relS.tuples);
 
     end_t = clock();
 

@@ -24,6 +24,9 @@ struct result {
 typedef struct result Result;
 
 Result* RadixHashJoin(Relation *relR, Relation *relS);
+Relation initarray(Relation *rel, int *rowids, double buckets);
+Relation inithist(Relation R, double buckets);
+Relation initpsum(Relation hist, double buckets);
 int h1(int num, double n);
 int h2(int num, int margin);
 Result* createbuff(void);

@@ -26,87 +26,20 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
     Srowids = malloc(relS->num_tuples * sizeof(int));
 
 //Initial arrays
-    R.num_tuples = relR->num_tuples;
-    R.tuples = malloc(R.num_tuples * sizeof(Tuple));
-    for(i = 0; i < R.num_tuples; i++){
-        Rrowids[i] = relR->tuples[i].key;                           //array of row ids to be used when making the joins
-        R.tuples[i].key = h1(relR->tuples[i].payload, buckets);     //h1 values of elements
-        R.tuples[i].payload = relR->tuples[i].payload;              //real values
-        //printf("%d %d\n", R.tuples[i].key, R.tuples[i].payload);
-    }
-    printf("\n");
-
-    S.num_tuples = relS->num_tuples;
-    S.tuples = malloc(S.num_tuples * sizeof(Tuple));
-    for(i = 0; i < S.num_tuples; i++){
-        Srowids[i] = relS->tuples[i].key;
-        S.tuples[i].key = h1(relS->tuples[i].payload, buckets);
-        S.tuples[i].payload = relS->tuples[i].payload;
-        //printf("%d %d\n", S.tuples[i].key, S.tuples[i].payload);
-    }
-    //printf("\n\n\n\n");
+    R = initarray(relR, Rrowids, buckets);
+    S = initarray(relS, Srowids, buckets);
 
 //Histograms
-    histR.num_tuples = buckets;
-    histR.tuples = malloc(histR.num_tuples * sizeof(Tuple));
-    histS.num_tuples = buckets;
-    histS.tuples = malloc(histS.num_tuples * sizeof(Tuple));
-
-    for(i = 0; i < buckets; i++){
-        histR.tuples[i].key = i;            //values of hash keys
-        histR.tuples[i].payload = 0;        //initializing counter of each value
-        histS.tuples[i].key = i;
-        histS.tuples[i].payload = 0;
-    }
-
-    for(i = 0; i < R.num_tuples; i++){
-        j = R.tuples[i].key;
-        histR.tuples[j].payload++;      //increasing counter for each appearance of its hash value
-    }
-    for(i = 0; i < S.num_tuples; i++){
-        j = S.tuples[i].key;
-        histS.tuples[j].payload++;
-    }
+    histR = inithist(R, buckets);
+    histS = inithist(S, buckets);
 
 //Cumulative histograms
-    psumR.num_tuples = buckets;
-    psumR.tuples = malloc(psumR.num_tuples * sizeof(Tuple));
-    psumS.num_tuples = buckets;
-    psumS.tuples = malloc(psumS.num_tuples * sizeof(Tuple));
-
-    for(i = 0; i < buckets; i++){
-        psumR.tuples[i].key = i;        //values of hash keys
-        psumS.tuples[i].key = i;
-    }
-
-    psumR.tuples[0].payload = 0;        //start of first bucket
-    psumS.tuples[0].payload = 0;
-    for(i = 1; i < buckets; i++){           //using the histograms we assign the start point of each bucket
-        psumR.tuples[i].payload = histR.tuples[i-1].payload + psumR.tuples[i-1].payload;
-        psumS.tuples[i].payload = histS.tuples[i-1].payload + psumS.tuples[i-1].payload;
-    }
+    psumR = initpsum(histR, buckets);
+    psumS = initpsum(histS, buckets);
 
 //Sorted buckets
     quicksort(&R, 0, R.num_tuples -1, Rrowids);     //sorting elements of both relations in buckets according to h1 value
     quicksort(&S, 0, S.num_tuples -1, Srowids);     //also sorting row ids so they coincide with their real value positions
-
-
-    /*for(i = 0; i < R.num_tuples; i++){
-        printf("%d %d\n", R.tuples[i].key, R.tuples[i].payload);
-    }
-    printf("\n");
-    for(i = 0; i < R.num_tuples; i++){
-        printf("%d\n", Rrowids[i]);
-    }
-    printf("\n\n\n");
-    for(i = 0; i < S.num_tuples; i++){
-        printf("%d %d\n", S.tuples[i].key, S.tuples[i].payload);
-    }
-    printf("\n");
-    for(i = 0; i < S.num_tuples; i++){
-        printf("%d\n", Srowids[i]);
-    }*/
-
 
 //Index build
     int flag;
@@ -147,6 +80,7 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
         Bucket[i] = 0;
     }
 
+    //index build
     int buckindex, chainindex;
     int currbottom = Min->num_tuples;
     for(i = ((int)buckets-1); i >= 0; i--){     //starting from the bottom
@@ -168,15 +102,6 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
 
         currbottom = psumMin->tuples[i].payload;
     }
-
-    /*printf("\n\n\nRR\tChain\n");
-    for(i=0; i < Min->num_tuples; i++){
-        printf("%d\t%d\n", Min->tuples[i].key, Chain[i+1]);
-    }
-    printf("\n\n\nBucket\n");
-    for(i=0; i < ((int)buckets * h2margin); i++){
-        printf("%d\n",Bucket[i]);
-    }*/
 
 //Joins
 
@@ -219,8 +144,6 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
         currbottom = psumMax->tuples[i].payload;
     }
 
-
-
     free(Rrowids);
     free(Srowids);
     free(psumR.tuples);
@@ -231,6 +154,61 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
     free(S.tuples);
 
     return res;
+}
+
+Relation initarray(Relation *rel, int *rowids, double buckets){
+
+    int i;
+    Relation R;
+
+    R.num_tuples = rel->num_tuples;
+    R.tuples = malloc(R.num_tuples * sizeof(Tuple));
+    for(i = 0; i < R.num_tuples; i++){
+        rowids[i] = rel->tuples[i].key;                           //array of row ids to be used when making the joins
+        R.tuples[i].key = h1(rel->tuples[i].payload, buckets);     //h1 values of elements
+        R.tuples[i].payload = rel->tuples[i].payload;              //real values
+    }
+
+    return R;
+}
+
+Relation inithist(Relation R, double buckets){
+    int i,j;
+    Relation hist;
+
+    hist.num_tuples = buckets;
+    hist.tuples = malloc(hist.num_tuples * sizeof(Tuple));
+
+    for(i = 0; i < buckets; i++){
+        hist.tuples[i].key = i;            //values of hash keys
+        hist.tuples[i].payload = 0;        //initializing counter of each value
+    }
+    for(i = 0; i < R.num_tuples; i++){
+        j = R.tuples[i].key;
+        hist.tuples[j].payload++;      //increasing counter for each appearance of its hash value
+    }
+
+    return hist;
+}
+
+Relation initpsum(Relation hist, double buckets){
+    int i;
+    Relation psum;
+
+    psum.num_tuples = buckets;
+    psum.tuples = malloc(psum.num_tuples * sizeof(Tuple));
+
+    for(i = 0; i < buckets; i++){
+        psum.tuples[i].key = i;        //values of hash keys
+    }
+
+    psum.tuples[0].payload = 0;        //start of first bucket
+
+    for(i = 1; i < buckets; i++){           //using the histograms we assign the start point of each bucket
+        psum.tuples[i].payload = hist.tuples[i-1].payload + psum.tuples[i-1].payload;
+    }
+
+    return psum;
 }
 
 
@@ -337,4 +315,3 @@ void quicksort(Relation* rel,int first,int last, int* rowids){
 
    }
 }
-
