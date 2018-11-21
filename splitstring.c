@@ -2,6 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct predicate{
+    int flag;       //0 for join 1 for filter
+    int t1;
+    int c1;
+    int t2;     //if join second table, if filter 0 for >, 1 for <, 2 for =
+    int c2;     // if join second column, if filter constant number
+};
+typedef struct predicate Predicate;
+
 int charcounter(char* str, char c){
     int counter = 0;
     int i;
@@ -13,14 +22,55 @@ int charcounter(char* str, char c){
     return counter;
 }
 
-struct predicate{
-    int flag;       //0 for join 1 for filter
-    int t1;
-    int c1;
-    int t2;     //if join second table, if filter 0 for >, 1 for <, 2 for =
-    int c2;     // if join second column, if filter constant number
-};
-typedef struct predicate Predicate
+void insertpred(char *s, Predicate *p, int index){
+
+    int equals, dots;
+    char *str;
+
+    equals = charcounter(s,'=');
+
+    if(equals == 1){
+
+        dots = charcounter(s,'.');
+        if(dots == 1){
+            p[index].flag = 1;
+            p[index].t1 = s[0] - '0';
+            p[index].c1 = s[2] - '0';
+            p[index].t2 = 2;
+            strtok(s, "=");
+            str = strtok(NULL, "=");
+            p[index].c2 = atoi(str);
+        }
+        else if(dots == 2){
+            p[index].flag = 0;
+            p[index].t1 = s[0] - '0';
+            p[index].c1 = s[2] - '0';
+            p[index].t2 = s[4] - '0';
+            p[index].c2 = s[6] - '0';
+        }
+
+    }
+    else if(equals == 0){
+        p[index].flag = 1;
+        p[index].t1 = s[0] - '0';
+        p[index].c1 = s[2] - '0';
+
+        if(charcounter(s, '>') == 1){
+            p[index].t2 = 0;
+            strtok(s, ">");
+            str = strtok(NULL, ">");
+            p[index].c2 = atoi(str);
+        }
+        else{
+            p[index].t2 = 1;
+            strtok(s, "<");
+            str = strtok(NULL, "<");
+            p[index].c2 = atoi(str);
+        }
+    }
+}
+
+
 
 
 int main(){
@@ -36,7 +86,6 @@ int main(){
     rel = strtok(str,"|");
     pred = strtok(NULL,"|");
     sum = strtok(NULL,"|");
-    printf("%s\n%s\n%s\n", rel, pred, sum);
 
 
     rels = charcounter(rel,' ');
@@ -53,10 +102,17 @@ int main(){
 
 
     Predicate p[preds+1];
+
     s = strtok(pred,"&");
+    insertpred(s, p, 0);
+
+    for(i=1; i<=preds; i++){
+        s = strtok(NULL,"&");
+        insertpred(s, p, i);
+    }
 
     for(i=0; i<=preds; i++){
-
+        printf("%d %d %d %d %d\n", p[i].flag, p[i].t1, p[i].c1, p[i].t2, p[i].c2);
     }
 
 

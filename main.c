@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <string.h>
 #include "structs.h"
-
+#define INFILE "small2.init"
 
 int main(void){
 
@@ -15,10 +16,13 @@ int main(void){
 
     start_t = clock();
 
+
+
+
     /*int R[] = {54,32,93,165,87,122,234,90,12,342,4,5,6,7,2,3,4,1,8,0,2,4,5,6,7,2,3,4,1,8,0,2};
     int Rrows = sizeof(R)/sizeof(int);
     int S[] = {11,73,93,86,54,65,93,112,5,1,9,7,3,12,8,0};
-    int Rrows = sizeof(S)/sizeof(int);*/
+    int Srows = sizeof(S)/sizeof(int);*/
 
     srand(time(NULL));
     int Rrows = 30000;

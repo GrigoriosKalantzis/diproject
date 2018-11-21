@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include "structs.h"
 
 
@@ -13,7 +14,7 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
 
     double buckets = pow(2.0, (double)n);
 
-    int i,j;
+    int i;
 
     int* Rrowids;
     int* Srowids;
@@ -41,6 +42,14 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
     quicksort(&R, 0, R.num_tuples -1, Rrowids);     //sorting elements of both relations in buckets according to h1 value
     quicksort(&S, 0, S.num_tuples -1, Srowids);     //also sorting row ids so they coincide with their real value positions
 
+//h2 values calculation
+    for(i = 0; i < R.num_tuples; i++){
+        R.tuples[i].key = h2(R.tuples[i].payload, h2margin);
+    }
+    for(i = 0; i < S.num_tuples; i++){
+        S.tuples[i].key = h2(S.tuples[i].payload, h2margin);
+    }
+
 //Index build
     int flag;
     if(R.num_tuples < S.num_tuples){    //the index will be built for the smallest array
@@ -58,91 +67,18 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
         flag = 1;
     }
 
+    Index *ind;
 
-    //h2 values calculation
-    for(i = 0; i < Min->num_tuples; i++){
-        Min->tuples[i].key = h2(Min->tuples[i].payload, h2margin);
-    }
-    for(i = 0; i < Max->num_tuples; i++){
-        Max->tuples[i].key = h2(Max->tuples[i].payload, h2margin);
-    }
+    ind = createindex(Min, psumMin, buckets, h2margin);
 
-    //Chain array initialization
-    int Chain[(Min->num_tuples + 1)];
-    for(i = 1; i < Min->num_tuples + 1; i++){
-        Chain[i] = 0;
-    }
-    Chain[0] = -1;
-
-    //Bucket array initialization
-    int Bucket[((int)buckets * h2margin)];
-    for(i = 0; i < ((int)buckets * h2margin); i++){
-        Bucket[i] = 0;
-    }
-
-    //index build
-    int buckindex, chainindex;
-    int currbottom = Min->num_tuples;
-    for(i = ((int)buckets-1); i >= 0; i--){     //starting from the bottom
-
-        for(j = currbottom-1; j >= (psumMin->tuples[i].payload); j--){      //each value of a bucket
-
-            buckindex = i*h2margin + Min->tuples[j].key;        //gets stored in the corresponding index
-            if(Bucket[buckindex] == 0){
-                Bucket[buckindex] = j+1;
-            }
-            else{
-                chainindex = Bucket[buckindex];
-                while(Chain[chainindex] != 0){
-                    chainindex = Chain[chainindex];
-                }
-                Chain[chainindex] = j+1;
-            }
-        }
-
-        currbottom = psumMin->tuples[i].payload;
-    }
 
 //Joins
 
-    Result* res = createbuff();     //first buffer creation
+    Result* res;
 
-    currbottom = Max->num_tuples;
-    for(i = ((int)buckets-1); i >= 0; i--){
+    res = join(ind, Max, psumMax, buckets, h2margin, Rrowids, Srowids, flag);
 
-        for(j = currbottom-1; j >= (psumMax->tuples[i].payload); j--){      //for each value of the greater array
 
-            buckindex = i*h2margin + Max->tuples[j].key;    //we search the corresponding index for matches
-            if(Bucket[buckindex] != 0){
-
-                if(Min->tuples[Bucket[buckindex]-1].payload == Max->tuples[j].payload){
-                    if(flag){
-                        //printf("%d %d\n", Rrowids[j] ,Srowids[Bucket[buckindex]-1]);
-                        insertbuff(res, Rrowids[j] ,Srowids[Bucket[buckindex]-1]);      //if the real values match their row ids are inserted into the buffer
-                    }
-                    else{
-                        //printf("%d %d\n",Rrowids[Bucket[buckindex]-1] , Srowids[j]);
-                        insertbuff(res, Rrowids[Bucket[buckindex]-1] , Srowids[j]);
-                    }
-                }
-                chainindex = Bucket[buckindex];
-                while(Chain[chainindex] != 0){
-                     if(Min->tuples[Chain[chainindex]-1].payload == Max->tuples[j].payload){
-                        if(flag){
-                            //printf("%d %d\n",Rrowids[j] ,Srowids[Chain[chainindex]-1]);
-                            insertbuff(res, Rrowids[j] ,Srowids[Chain[chainindex]-1]);
-                        }
-                        else{
-                            //printf("%d %d\n",Rrowids[Chain[chainindex]-1] , Srowids[j]);
-                            insertbuff(res, Rrowids[Chain[chainindex]-1] , Srowids[j]);
-                        }
-                    }
-                    chainindex = Chain[chainindex];
-                }
-            }
-        }
-        currbottom = psumMax->tuples[i].payload;
-    }
 
     free(Rrowids);
     free(Srowids);
@@ -209,6 +145,106 @@ Relation initpsum(Relation hist, double buckets){
     }
 
     return psum;
+}
+
+Index* createindex(Relation *Rel, Relation *psumR, double buckets, int h2margin){
+
+    Index *ind;
+    int i,j;
+
+    ind = malloc(sizeof(Index));
+
+    //copy R table
+    ind->R.num_tuples = Rel->num_tuples;
+    ind->R.tuples = malloc(Rel->num_tuples * sizeof(Tuple));
+
+    for(i = 0; i < Rel->num_tuples + 1; i++){
+        ind->R.tuples[i].key = Rel->tuples[i].key;
+        ind->R.tuples[i].payload = Rel->tuples[i].payload;
+    }
+
+    //Chain array initialization
+    ind->Chain = malloc((Rel->num_tuples + 1) * sizeof(int));
+    for(i = 1; i < Rel->num_tuples + 1; i++){
+        ind->Chain[i] = 0;
+    }
+    ind->Chain[0] = -1;
+
+    //Bucket array initialization
+    ind->Bucket = malloc(((int)buckets * h2margin) * sizeof(int));
+    for(i = 0; i < ((int)buckets * h2margin); i++){
+        ind->Bucket[i] = 0;
+    }
+
+    //index build
+    int buckindex, chainindex;
+    int currbottom = Rel->num_tuples;
+
+    for(i = ((int)buckets-1); i >= 0; i--){     //starting from the bottom
+
+        for(j = currbottom-1; j >= (psumR->tuples[i].payload); j--){      //each value of a bucket
+
+            buckindex = i*h2margin + Rel->tuples[j].key;        //gets stored in the corresponding index
+            if(ind->Bucket[buckindex] == 0){
+                ind->Bucket[buckindex] = j+1;
+            }
+            else{
+                chainindex = ind->Bucket[buckindex];
+                while(ind->Chain[chainindex] != 0){
+                    chainindex = ind->Chain[chainindex];
+                }
+                ind->Chain[chainindex] = j+1;
+            }
+
+        }
+        currbottom = psumR->tuples[i].payload;
+    }
+    return ind;
+}
+
+Result* join(Index *ind, Relation *Rel, Relation *psumR, double buckets, int h2margin, int *Rrowids, int *Srowids, int flag){
+
+    Result* res;
+    int i,j;
+    int buckindex, chainindex;
+    int currbottom = Rel->num_tuples;
+
+    res = createbuff();     //first buffer creation
+
+    for(i = ((int)buckets-1); i >= 0; i--){
+
+        for(j = currbottom-1; j >= (psumR->tuples[i].payload); j--){      //for each value of the greater array
+
+            buckindex = i*h2margin + Rel->tuples[j].key;    //we search the corresponding index for matches
+            if(ind->Bucket[buckindex] != 0){
+
+                if(ind->R.tuples[ind->Bucket[buckindex]-1].payload == Rel->tuples[j].payload){
+                    if(flag){
+                        insertbuff(res, Rrowids[j] , Srowids[ind->Bucket[buckindex]-1]);      //if the real values match their row ids are inserted into the buffer
+                    }
+                    else{
+                        insertbuff(res, Rrowids[ind->Bucket[buckindex]-1] , Srowids[j]);
+                    }
+                }
+                chainindex = ind->Bucket[buckindex];
+                while(ind->Chain[chainindex] != 0){
+                     if(ind->R.tuples[ind->Chain[chainindex]-1].payload == Rel->tuples[j].payload){
+                        if(flag){
+                            insertbuff(res, Rrowids[j] , Srowids[ind->Chain[chainindex]-1]);
+                        }
+                        else{
+                            insertbuff(res, Rrowids[ind->Chain[chainindex]-1] , Srowids[j]);
+                        }
+                    }
+                    chainindex = ind->Chain[chainindex];
+                }
+            }
+
+        }
+        currbottom = psumR->tuples[i].payload;
+    }
+
+    return res;
 }
 
 
@@ -314,4 +350,63 @@ void quicksort(Relation* rel,int first,int last, int* rowids){
       quicksort(rel,j+1,last, rowids);
 
    }
+}
+
+int charcounter(char* str, char c){
+    int counter = 0;
+    int i;
+
+    for(i = 0; i<strlen(str); i++){
+        if (str[i] == c) counter++;
+    }
+
+    return counter;
+}
+
+void insertpred(char *s, Predicate *p, int index){
+
+    int equals, dots;
+    char *str;
+
+    equals = charcounter(s,'=');
+
+    if(equals == 1){
+
+        dots = charcounter(s,'.');
+        if(dots == 1){
+            p[index].flag = 1;
+            p[index].t1 = s[0] - '0';
+            p[index].c1 = s[2] - '0';
+            p[index].t2 = 2;
+            strtok(s, "=");
+            str = strtok(NULL, "=");
+            p[index].c2 = atoi(str);
+        }
+        else if(dots == 2){
+            p[index].flag = 0;
+            p[index].t1 = s[0] - '0';
+            p[index].c1 = s[2] - '0';
+            p[index].t2 = s[4] - '0';
+            p[index].c2 = s[6] - '0';
+        }
+
+    }
+    else if(equals == 0){
+        p[index].flag = 1;
+        p[index].t1 = s[0] - '0';
+        p[index].c1 = s[2] - '0';
+
+        if(charcounter(s, '>') == 1){
+            p[index].t2 = 0;
+            strtok(s, ">");
+            str = strtok(NULL, ">");
+            p[index].c2 = atoi(str);
+        }
+        else{
+            p[index].t2 = 1;
+            strtok(s, "<");
+            str = strtok(NULL, "<");
+            p[index].c2 = atoi(str);
+        }
+    }
 }
