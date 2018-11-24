@@ -4,17 +4,31 @@
 #include <math.h>
 #include <string.h>
 #include "structs.h"
-#define INFILE "small2.init"
+#include "sys/stat.h"
+#include "fcntl.h"
+#include "unistd.h"
 
 int main(void){
+	
 
     clock_t start_t, end_t, total_t;
     int i;
     FILE *fp;
+	FILE *ffff;
+
 
     int margin = 10000;
 
+    char filename[10];
+
     start_t = clock();
+
+	
+	ffff = fopen("out.txt","w");
+	fprintf(ffff,"PROJECT ALITHEIAS\n");
+
+
+	printf("OK\n");
 
 
 
@@ -24,9 +38,15 @@ int main(void){
     int S[] = {11,73,93,86,54,65,93,112,5,1,9,7,3,12,8,0};
     int Srows = sizeof(S)/sizeof(int);*/
 
+    while(fgets(filename,10,stdin)){
+        printf("%s\n",filename);
+        if (strcmp(filename,"Done\n") == 0) break;
+    }
+
+
     srand(time(NULL));
-    int Rrows = 30000;
-    int Srows = 20000;
+    int Rrows = 300;
+    int Srows = 200;
     int R[Rrows];
     int S[Srows];
     for(i = 0; i < Rrows; i++){
