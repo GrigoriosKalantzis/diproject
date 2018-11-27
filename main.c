@@ -9,38 +9,31 @@
 #include "unistd.h"
 
 int main(void){
-	
-
-    clock_t start_t, end_t, total_t;
-    int i;
-    FILE *fp;
-	FILE *ffff;
 
 
     int margin = 10000;
+    clock_t start_t, end_t, total_t;
+    int i;
+    FILE *fp;
 
+    Matrix *matrixes;
+    int matrixnum = 0;
     char filename[10];
+    char *fname;
 
     start_t = clock();
 
-	
-	ffff = fopen("out.txt","w");
-	fprintf(ffff,"PROJECT ALITHEIAS\n");
+    matrixes = malloc(sizeof(Matrix));
 
-
-	printf("OK\n");
-
-
-
-
-    /*int R[] = {54,32,93,165,87,122,234,90,12,342,4,5,6,7,2,3,4,1,8,0,2,4,5,6,7,2,3,4,1,8,0,2};
-    int Rrows = sizeof(R)/sizeof(int);
-    int S[] = {11,73,93,86,54,65,93,112,5,1,9,7,3,12,8,0};
-    int Srows = sizeof(S)/sizeof(int);*/
-
-    while(fgets(filename,10,stdin)){
-        printf("%s\n",filename);
+    while(1){
+        fgets(filename,10,stdin);
         if (strcmp(filename,"Done\n") == 0) break;
+
+        matrixnum++;
+        fname = strtok(filename,"\n");
+
+        loadrelation(matrixes,matrixnum,fname);
+
     }
 
 

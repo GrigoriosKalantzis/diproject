@@ -25,6 +25,13 @@ struct relation {
 };
 typedef struct relation Relation;
 
+struct matrix{
+    uint64_t num_rows;
+    uint64_t num_columns;
+    uint64_t **columns;
+};
+typedef struct matrix Matrix;
+
 struct index{
     Relation R;
     int *Chain;
@@ -39,6 +46,7 @@ struct result {
 };
 typedef struct result Result;
 
+void loadrelation(Matrix *matrixes, int matrixnum, char* fname);
 Result* RadixHashJoin(Relation *relR, Relation *relS);
 Relation initarray(Relation *rel, int *rowids, double buckets);
 Relation inithist(Relation R, double buckets);

@@ -2,7 +2,62 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "structs.h"
+
+void loadrelation(Matrix *matrixes, int matrixnum, char* fname){
+
+    int i,j;
+
+    int fd = open(fname, O_RDONLY);
+    if (fd==-1) {
+        perror("cannot open");
+        exit(1);
+    }
+
+    if(matrixnum != 1){
+        matrixes = realloc(matrixes, matrixnum * sizeof(Matrix));
+    }
+
+    // Obtain file size
+    struct stat sb;
+    if (fstat(fd,&sb)==-1)
+        perror("fstat\n");
+    int length=sb.st_size;
+
+    char* addr= (char*)(mmap(NULL,length,PROT_READ,MAP_PRIVATE,fd,0u));
+    if (addr==MAP_FAILED) {
+        perror("cannot mmap");
+        exit(1);
+    }
+
+    if (length<16) {
+        perror("relation file does not contain a valid header");
+        exit(1);
+    }
+
+    matrixes[matrixnum-1].num_rows = *(uint64_t*)(addr);
+    addr+=sizeof(uint64_t);
+    matrixes[matrixnum-1].num_columns = *(uint64_t*)(addr);
+    addr+=sizeof(uint64_t);
+    matrixes[matrixnum-1].columns = malloc(matrixes[matrixnum-1].num_columns * sizeof(uint64_t*));
+    for(i = 0; i < matrixes[matrixnum-1].num_columns; i++){
+
+        matrixes[matrixnum-1].columns[i] = malloc(matrixes[matrixnum-1].num_rows * sizeof(uint64_t));
+        for(j = 0; j < matrixes[matrixnum-1].num_rows; j++){
+            matrixes[matrixnum-1].columns[i][j] = *(uint64_t*)(addr);
+            addr+=sizeof(uint64_t);
+		if(j == 0)
+            		fprintf(stderr,"%u | ",matrixes[matrixnum-1].columns[i][j]);
+        }
+    }
+	fprintf(stderr,"\n");
+    close(fd);
+
+}
 
 
 Result* RadixHashJoin(Relation *relR, Relation *relS){
