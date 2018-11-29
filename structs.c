@@ -59,6 +59,12 @@ void loadrelation(Matrix *matrixes, int matrixnum, char* fname){
 
 }
 
+char* execQuery(char *query, Matrix *matrixes){
+
+
+
+}
+
 
 Result* RadixHashJoin(Relation *relR, Relation *relS){
 
@@ -144,6 +150,44 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
     free(R.tuples);
     free(S.tuples);
 
+    return res;
+}
+
+Result* Filter(Relation *rel, int operand, int constant){
+
+    int i;
+    Result *res;
+    res = createbuff();
+
+    for(i = 0; i < rel->num_tuples; i++){
+        if(operand == 0){
+            if(rel->tuples[i].payload > constant)
+                insertbuff(res, rel->tuples[i].key, -1);
+        }
+        else if(operand == 1){
+            if(rel->tuples[i].payload < constant)
+                insertbuff(res, rel->tuples[i].key, -1);
+        }
+        else if(operand == 2){
+            if(rel->tuples[i].payload == constant)
+                insertbuff(res, rel->tuples[i].key, -1);
+        }
+    }
+    return res;
+}
+
+Result* SelfJoin(Relation *relR, Relation *relS){
+
+    int i,j;
+    Result *res;
+    res = createbuff();
+
+    for(i = 0; i < relR->num_tuples; i++){
+        for(j = 0; j < relS->num_tuples; j++){
+            if(relR->tuples[i].payload == relS->tuples[j].payload)
+                insertbuff(res, relR->tuples[i].key, relS->tuples[j].key);
+        }
+    }
     return res;
 }
 
@@ -349,7 +393,7 @@ void printbuff(Result *res, FILE *fp, long sum){
         printbuff(res->next, fp, sum);
     }
     else{
-        printf("TOTAL JOINS: %ld\n", sum);
+        //printf("TOTAL JOINS: %ld\n", sum);
     }
 
 }

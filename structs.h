@@ -47,7 +47,10 @@ struct result {
 typedef struct result Result;
 
 void loadrelation(Matrix *matrixes, int matrixnum, char* fname);
+char* execQuery(char *query, Matrix *matrixes);
 Result* RadixHashJoin(Relation *relR, Relation *relS);
+Result* Filter(Relation *rel, int operand, int constant);
+Result* SelfJoin(Relation *relR, Relation *relS);
 Relation initarray(Relation *rel, int *rowids, double buckets);
 Relation inithist(Relation R, double buckets);
 Relation initpsum(Relation hist, double buckets);

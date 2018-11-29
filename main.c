@@ -12,16 +12,16 @@ int main(void){
 
 
     int margin = 10000;
-    clock_t start_t, end_t, total_t;
     int i;
     FILE *fp;
 
     Matrix *matrixes;
     int matrixnum = 0;
     char filename[10];
-    char *fname;
+    char *fname, *output;
+    char query[100];
+    char buffer[4096];
 
-    start_t = clock();
 
     matrixes = malloc(sizeof(Matrix));
 
@@ -33,6 +33,19 @@ int main(void){
         fname = strtok(filename,"\n");
 
         loadrelation(matrixes,matrixnum,fname);
+
+    }
+
+    while(1){
+        if(fgets(query, 100, stdin) != NULL){
+
+            fprintf(stderr,"%s\n",query);
+            if(strcmp(query,"F\n") == 0) break;
+
+            output = execQuery(query, matrixes);
+
+
+        }
 
     }
 
@@ -83,13 +96,6 @@ int main(void){
 
     free(relR.tuples);
     free(relS.tuples);
-
-    end_t = clock();
-
-    total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
-    printf("Total time taken by CPU in seconds: %ld\n", total_t  );
-    printf("Clock Ticks: %ld\n", (end_t - start_t));
-
 
     return 0;
 }

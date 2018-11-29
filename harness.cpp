@@ -175,6 +175,7 @@ int main(int argc, char *argv[]) {
 #if 1
   // Wait for 1 second
  // this_thread::sleep_for(1s);
+    sleep(1);
 
 #else
   // Wait for the ready signal
