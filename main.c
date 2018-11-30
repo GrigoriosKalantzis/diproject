@@ -39,7 +39,7 @@ int main(void){
     while(1){
         if(fgets(query, 100, stdin) != NULL){
 
-            fprintf(stderr,"%s\n",query);
+            //fprintf(stderr,"%s\n",query);
             if(strcmp(query,"F\n") == 0) break;
 
             output = execQuery(query, matrixes);

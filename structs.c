@@ -59,8 +59,51 @@ void loadrelation(Matrix *matrixes, int matrixnum, char* fname){
 
 }
 
-char* execQuery(char *query, Matrix *matrixes){
+char* execQuery(char query[], Matrix *matrixes){
 
+    char *rel, *pred, *sum;
+    int rels, preds, sums;
+    char *s;
+    int i;
+
+//splitting query in individual data
+    rel = strtok(query,"|");
+    pred = strtok(NULL,"|");
+    sum = strtok(NULL,"|");
+
+
+    rels = charcounter(rel,' ');
+    preds = charcounter(pred,'&');
+    sums = charcounter(sum,' ');
+
+    int relations[rels+1];
+    relations[0] = atoi(strtok(rel," "));
+    for(i=1; i<=rels; i++){
+        relations[i] = atoi(strtok(NULL," "));
+        //printf("%d\n", relations[i]);
+    }
+
+    Predicate p[preds+1];
+
+    s = strtok(pred,"&");
+    insertpred(s, p, 0);
+
+    for(i=1; i<=preds; i++){
+        s = strtok(NULL,"&");
+        insertpred(s, p, i);
+    }
+
+    int checksums[sums+1][2];
+    s = strtok(sum, " ");
+    checksums[0][0] = s[0] - '0';
+    checksums[0][1] = s[2] - '0';
+    for(i=1; i<=sums; i++){
+        s = strtok(NULL, " ");
+        checksums[i][0] = s[0] - '0';
+        checksums[i][1] = s[2] - '0';
+    }
+
+    //fprintf(stderr,"DIAVASMA %s\n",query);
 
 
 }
