@@ -48,6 +48,8 @@ typedef struct result Result;
 
 void loadrelation(Matrix *matrixes, int matrixnum, char* fname);
 char* execQuery(char query[], Matrix *matrixes);
+void initrelation(Relation *rel, int rows, uint64_t *values);
+int getrescount(Result *res);
 Result* RadixHashJoin(Relation *relR, Relation *relS);
 Result* Filter(Relation *rel, int operand, int constant);
 Result* SelfJoin(Relation *relR, Relation *relS);

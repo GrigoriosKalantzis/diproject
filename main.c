@@ -11,9 +11,8 @@
 int main(void){
 
 
-    int margin = 10000;
+    //int margin = 10000;
     int i;
-    FILE *fp;
 
     Matrix *matrixes;
     int matrixnum = 0;
@@ -50,7 +49,7 @@ int main(void){
     }
 
 
-    srand(time(NULL));
+    /*srand(time(NULL));
     int Rrows = 300;
     int Srows = 200;
     int R[Rrows];
@@ -84,18 +83,16 @@ int main(void){
 //Join
     res = RadixHashJoin(&relR, &relS);
 
-//printing results
 
-    fp = fopen("output.txt", "w");
 
-    fprintf(fp,"JOINS\n\nRrows\tSrows\n");
-    printbuff(res, fp, 0);
     freebuff(res);
 
-    fclose(fp);
-
     free(relR.tuples);
-    free(relS.tuples);
+    free(relS.tuples);*/
+
+
+    fprintf(stderr,"END OF MAIN\n");
+
 
     return 0;
 }
