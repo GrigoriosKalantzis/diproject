@@ -12,7 +12,7 @@ int main(void){
 
 
     //int margin = 10000;
-    int i;
+    int i,j;
 
     Matrix *matrixes;
     int matrixnum = 0;
@@ -31,9 +31,10 @@ int main(void){
         matrixnum++;
         fname = strtok(filename,"\n");
 
-        loadrelation(matrixes,matrixnum,fname);
+        loadrelation(&matrixes,matrixnum,fname);
 
     }
+
 
     while(1){
         if(fgets(query, 100, stdin) != NULL){
@@ -83,12 +84,18 @@ int main(void){
 //Join
     res = RadixHashJoin(&relR, &relS);
 
-
-
     freebuff(res);
 
     free(relR.tuples);
     free(relS.tuples);*/
+
+    for(i = 0; i < matrixnum; i++){
+        for(j = 0; j < matrixes[i].num_columns; j++){
+            free(matrixes[i].columns[j]);
+        }
+        free(matrixes[i].columns);
+    }
+    free(matrixes);
 
 
     fprintf(stderr,"END OF MAIN\n");

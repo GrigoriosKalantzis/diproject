@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include "structs.h"
 
-void loadrelation(Matrix *matrixes, int matrixnum, char* fname){
+void loadrelation(Matrix **matrixes, int matrixnum, char* fname){
 
     int i,j;
 
@@ -19,7 +19,7 @@ void loadrelation(Matrix *matrixes, int matrixnum, char* fname){
     }
 
     if(matrixnum != 1){
-        matrixes = realloc(matrixes, matrixnum * sizeof(Matrix));
+       (*matrixes) = realloc((*matrixes), matrixnum * sizeof(Matrix));
     }
 
     // Obtain file size
@@ -39,21 +39,20 @@ void loadrelation(Matrix *matrixes, int matrixnum, char* fname){
         exit(1);
     }
 
-    matrixes[matrixnum-1].num_rows = *(uint64_t*)(addr);
+    (*matrixes)[matrixnum-1].num_rows = *(uint64_t*)(addr);
     addr+=sizeof(uint64_t);
-    matrixes[matrixnum-1].num_columns = *(uint64_t*)(addr);
+    (*matrixes)[matrixnum-1].num_columns = *(uint64_t*)(addr);
     addr+=sizeof(uint64_t);
-    matrixes[matrixnum-1].columns = malloc(matrixes[matrixnum-1].num_columns * sizeof(uint64_t*));
-    for(i = 0; i < matrixes[matrixnum-1].num_columns; i++){
+    (*matrixes)[matrixnum-1].columns = malloc((*matrixes)[matrixnum-1].num_columns * sizeof(uint64_t*));
+    for(i = 0; i < (*matrixes)[matrixnum-1].num_columns; i++){
 
-        matrixes[matrixnum-1].columns[i] = malloc(matrixes[matrixnum-1].num_rows * sizeof(uint64_t));
-        for(j = 0; j < matrixes[matrixnum-1].num_rows; j++){
-            matrixes[matrixnum-1].columns[i][j] = *(uint64_t*)(addr);
+        (*matrixes)[matrixnum-1].columns[i] = malloc((*matrixes)[matrixnum-1].num_rows * sizeof(uint64_t));
+        for(j = 0; j < (*matrixes)[matrixnum-1].num_rows; j++){
+            (*matrixes)[matrixnum-1].columns[i][j] = *(uint64_t*)(addr);
             addr+=sizeof(uint64_t);
         }
     }
     close(fd);
-
 }
 
 char* execQuery(char query[], Matrix *matrixes){
@@ -110,14 +109,12 @@ char* execQuery(char query[], Matrix *matrixes){
         num_results[i] = 0;
         flags[i] = 0;
     }
-fprintf(stderr,"SPLIT STRING\n");
-    uint64_t* temp_col;
-    temp_col = malloc(sizeof(uint64_t));
-    Relation relR, relS;
-    relR.tuples = malloc(sizeof(Tuple));
-    relS.tuples = malloc(sizeof(Tuple));
 
-fprintf(stderr,"STARTING EXE\n");
+    uint64_t* temp_col;
+    temp_col = malloc(4*sizeof(uint64_t));
+    Relation relR, relS;
+    relR.tuples = malloc(4*sizeof(Tuple));
+    relS.tuples = malloc(4*sizeof(Tuple));
 
     for(i=0; i<=preds; i++){
 
@@ -128,35 +125,33 @@ fprintf(stderr,"STARTING EXE\n");
             else{
                 temp_col = realloc(temp_col, num_results[predicates[i].t1]*sizeof(uint64_t));
                 for(j=0; j<num_results[predicates[i].t1]; j++)
-                    temp_col[j] = matrixes[relations[predicates[i].t1]].columns[predicates[i].c1][j];
+                    temp_col[j] = matrixes[relations[predicates[i].t1]].columns[predicates[i].c1][results[predicates[i].t1][j]];
                 initrelation(&relR, num_results[predicates[i].t1], temp_col);
-                //free(temp_col);
-
             }
             if (flags[predicates[i].t2] == 0)
                 initrelation(&relS, matrixes[relations[predicates[i].t2]].num_rows, matrixes[relations[predicates[i].t2]].columns[predicates[i].c2]);
             else{
                 temp_col = realloc(temp_col, num_results[predicates[i].t2]*sizeof(uint64_t));
                 for(j=0; j<num_results[predicates[i].t2]; j++)
-                    temp_col[j] = matrixes[relations[predicates[i].t2]].columns[predicates[i].c2][j];
+                    temp_col[j] = matrixes[relations[predicates[i].t2]].columns[predicates[i].c2][results[predicates[i].t2][j]];
                 initrelation(&relS, num_results[predicates[i].t2], temp_col);
-                //free(temp_col);
-
             }
 
-            if((flags[predicates[i].t1]) && (flags[predicates[i].t2]))
+            if((flags[predicates[i].t1]) && (flags[predicates[i].t2])){
+                fprintf(stderr,"SELF\n");
                 res = SelfJoin(&relR, &relS);
-            else
+            }
+            else{
+                fprintf(stderr,"RADIX\n");
                 res = RadixHashJoin(&relR, &relS);
+            }
 
 
             num_results[predicates[i].t1] = getrescount(res);
             num_results[predicates[i].t2] = num_results[predicates[i].t1];
 
+            /****************************************/
 
-            /***********/
-
-            fprintf(stderr,"JOIN");
 
         }
         else if(predicates[i].flag == 1){
@@ -166,17 +161,18 @@ fprintf(stderr,"STARTING EXE\n");
             else{
                 temp_col = realloc(temp_col, num_results[predicates[i].t1]*sizeof(uint64_t));
                 for(j=0; j<num_results[predicates[i].t1]; j++)
-                    temp_col[j] = matrixes[relations[predicates[i].t1]].columns[predicates[i].c1][j];
+                    temp_col[j] = matrixes[relations[predicates[i].t1]].columns[predicates[i].c1][results[predicates[i].t1][j]];
                 initrelation(&relR, num_results[predicates[i].t1], temp_col);
-                //free(temp_col);
             }
 
             res = Filter(&relR, predicates[i].t2, predicates[i].c2);
 
-            /**********/
+            num_results[predicates[i].t1] = getrescount(res);
 
 
-            fprintf(stderr,"FILTER");
+            /***************************/
+
+            fprintf(stderr,"FILTER\n");
         }
 
         freebuff(res);
@@ -185,8 +181,6 @@ fprintf(stderr,"STARTING EXE\n");
     free(temp_col);
     free(relR.tuples);
     free(relS.tuples);
-    /*free(relR);
-    free(relS);*/
 
     return "READ QUERY";
 }
@@ -194,7 +188,6 @@ fprintf(stderr,"STARTING EXE\n");
 void initrelation(Relation *rel, int rows, uint64_t *values){
 
     int i;
-
     rel->tuples = realloc(rel->tuples, rows*sizeof(Tuple));
     rel->num_tuples = rows;
 
@@ -283,15 +276,16 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
 
     ind = createindex(Min, psumMin, buckets, h2margin);
 
-
 //Joins
 
     Result* res;
 
     res = join(ind, Max, psumMax, buckets, h2margin, Rrowids, Srowids, flag);
 
-
-
+    free(ind->Bucket);
+    free(ind->Chain);
+    free(ind->R.tuples);
+    free(ind);
     free(Rrowids);
     free(Srowids);
     free(psumR.tuples);
@@ -411,14 +405,14 @@ Index* createindex(Relation *Rel, Relation *psumR, double buckets, int h2margin)
     ind->R.num_tuples = Rel->num_tuples;
     ind->R.tuples = malloc(Rel->num_tuples * sizeof(Tuple));
 
-    for(i = 0; i < Rel->num_tuples + 1; i++){
+    for(i = 0; i < Rel->num_tuples; i++){
         ind->R.tuples[i].key = Rel->tuples[i].key;
         ind->R.tuples[i].payload = Rel->tuples[i].payload;
     }
 
     //Chain array initialization
-    ind->Chain = malloc((Rel->num_tuples + 1) * sizeof(int));
-    for(i = 1; i < Rel->num_tuples + 1; i++){
+    ind->Chain = malloc(((Rel->num_tuples)+1) * sizeof(int));
+    for(i = 1; i < (Rel->num_tuples+1); i++){
         ind->Chain[i] = 0;
     }
     ind->Chain[0] = -1;

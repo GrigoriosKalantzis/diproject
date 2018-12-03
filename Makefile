@@ -18,5 +18,5 @@ harness.o: harness.cpp
 	$(CC2) $(FLAGS) -std=gnu++11  harness.cpp
 
 clean:
-	rm -f $(OBJS1) $(OBJS2) $(OBJS3) $(OUT1) $(OUT2) output.txt
+	rm -f $(OBJS1) $(OBJS2) $(OBJS3) $(OUT1) $(OUT2)
 
