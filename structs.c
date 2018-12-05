@@ -60,7 +60,7 @@ char* execQuery(char query[], Matrix *matrixes){
     char *rel, *pred, *sum;
     int rels, preds, sums;
     char *s;
-    int i,j;
+    int i,j,k;
 
 //splitting query in individual data
     rel = strtok(query,"|");
@@ -99,13 +99,15 @@ char* execQuery(char query[], Matrix *matrixes){
         checksums[i][1] = s[2] - '0';
     }
 
+//execution
     Result *res;
     int* results[rels+1];
     int* temp_results[rels+1];
     int num_results[rels+1];
     int flags[rels+1];
     for(i=0; i<=rels; i++){
-        results[i] = NULL;
+        results[i] = malloc(4*sizeof(int));
+        temp_results[i] = malloc(4*sizeof(int));
         num_results[i] = 0;
         flags[i] = 0;
     }
@@ -125,24 +127,25 @@ char* execQuery(char query[], Matrix *matrixes){
             else{
                 temp_col = realloc(temp_col, num_results[predicates[i].t1]*sizeof(uint64_t));
                 for(j=0; j<num_results[predicates[i].t1]; j++)
-                    temp_col[j] = matrixes[relations[predicates[i].t1]].columns[predicates[i].c1][results[predicates[i].t1][j]];
+                    temp_col[j] = matrixes[relations[predicates[i].t1]].columns[predicates[i].c1][results[predicates[i].t1][j] - 1];
                 initrelation(&relR, num_results[predicates[i].t1], temp_col);
             }
+
             if (flags[predicates[i].t2] == 0)
                 initrelation(&relS, matrixes[relations[predicates[i].t2]].num_rows, matrixes[relations[predicates[i].t2]].columns[predicates[i].c2]);
             else{
                 temp_col = realloc(temp_col, num_results[predicates[i].t2]*sizeof(uint64_t));
                 for(j=0; j<num_results[predicates[i].t2]; j++)
-                    temp_col[j] = matrixes[relations[predicates[i].t2]].columns[predicates[i].c2][results[predicates[i].t2][j]];
+                    temp_col[j] = matrixes[relations[predicates[i].t2]].columns[predicates[i].c2][results[predicates[i].t2][j] - 1];
                 initrelation(&relS, num_results[predicates[i].t2], temp_col);
             }
 
             if((flags[predicates[i].t1]) && (flags[predicates[i].t2])){
-                fprintf(stderr,"SELF\n");
+                //fprintf(stderr,"SELF\n");
                 res = SelfJoin(&relR, &relS);
             }
             else{
-                fprintf(stderr,"RADIX\n");
+                //fprintf(stderr,"RADIX\n");
                 res = RadixHashJoin(&relR, &relS);
             }
 
@@ -150,9 +153,55 @@ char* execQuery(char query[], Matrix *matrixes){
             num_results[predicates[i].t1] = getrescount(res);
             num_results[predicates[i].t2] = num_results[predicates[i].t1];
 
+
             /****************************************/
 
+            if (flags[predicates[i].t1] == 0){
+                results[predicates[i].t1] = realloc(results[predicates[i].t1], (num_results[predicates[i].t1]) * sizeof(int));
+                copybuff(res, &(results[predicates[i].t1]), 1);
+            }
+            else{
+                for(j=0; j<=rels; j++){
+                    if((j != predicates[i].t2) || (predicates[i].t1 == predicates[i].t2)){
+                        if(flags[j]){
+                            temp_results[j] = realloc(temp_results[j], (num_results[predicates[i].t1]) * sizeof(int));
+                            copybuff(res ,&(temp_results[j]), 1);
+                            for(k=0; k<num_results[predicates[i].t1]; k++){
+                                temp_results[j][k] = results[j][temp_results[j][k]-1];
+                            }
+                            //&(results[j]) = &(temp_results[j]);
+                            results[j] = realloc(results[j], (num_results[predicates[i].t1]) * sizeof(int));
+                            for(k=0; k<num_results[predicates[i].t1]; k++){
+                                results[j][k] = temp_results[j][k];
+                            }
+                            num_results[j] = num_results[predicates[i].t1];
+                        }
+                    }
+                }
+            }
 
+            if(predicates[i].t1 != predicates[i].t2){
+                if (flags[predicates[i].t2] == 0){
+                    results[predicates[i].t2] = realloc(results[predicates[i].t2], (num_results[predicates[i].t2]) * sizeof(int));
+                    copybuff(res, &(results[predicates[i].t2]), 2);
+                }
+                else{
+                    temp_results[predicates[i].t2] = realloc(temp_results[predicates[i].t2], (num_results[predicates[i].t2]) * sizeof(int));
+                    copybuff(res ,&(temp_results[predicates[i].t2]), 2);
+                    for(k=0; k<num_results[predicates[i].t2]; k++){
+                        temp_results[predicates[i].t2][k] = results[predicates[i].t2][temp_results[predicates[i].t2][k]-1];
+                    }
+                    //&(results[predicates[i].t2]) = &(temp_results[predicates[i].t2]);
+                    results[predicates[i].t2] = realloc(results[predicates[i].t2], (num_results[predicates[i].t2]) * sizeof(int));
+                    for(k=0; k<num_results[predicates[i].t2]; k++){
+                        results[predicates[i].t2][k] = temp_results[predicates[i].t2][k];
+                    }
+                }
+            }
+
+
+            flags[predicates[i].t1] = 1;
+            flags[predicates[i].t2] = 1;
         }
         else if(predicates[i].flag == 1){
 
@@ -161,7 +210,7 @@ char* execQuery(char query[], Matrix *matrixes){
             else{
                 temp_col = realloc(temp_col, num_results[predicates[i].t1]*sizeof(uint64_t));
                 for(j=0; j<num_results[predicates[i].t1]; j++)
-                    temp_col[j] = matrixes[relations[predicates[i].t1]].columns[predicates[i].c1][results[predicates[i].t1][j]];
+                    temp_col[j] = matrixes[relations[predicates[i].t1]].columns[predicates[i].c1][results[predicates[i].t1][j] - 1];
                 initrelation(&relR, num_results[predicates[i].t1], temp_col);
             }
 
@@ -171,13 +220,55 @@ char* execQuery(char query[], Matrix *matrixes){
 
 
             /***************************/
+            if (flags[predicates[i].t1] == 0){
+                results[predicates[i].t1] = realloc(results[predicates[i].t1], (num_results[predicates[i].t1]) * sizeof(int));
+                copybuff(res, &(results[predicates[i].t1]), 1);
+            }
+            else{
+                for(j=0; j<=rels; j++){
+                    if(flags[j]){
+                        temp_results[j] = realloc(temp_results[j], (num_results[predicates[i].t1]) * sizeof(int));
+                        copybuff(res ,&(temp_results[j]), 1);
+                        for(k=0; k<num_results[predicates[i].t1]; k++){
+                            temp_results[j][k] = results[j][temp_results[j][k]-1];
+                        }
+                        //&(results[j]) = &(temp_results[j]);
+                        results[j] = realloc(results[j], (num_results[predicates[i].t1]) * sizeof(int));
+                        for(k=0; k<num_results[predicates[i].t1]; k++){
+                            results[j][k] = temp_results[j][k];
+                        }
+                        num_results[j] = num_results[predicates[i].t1];
+                    }
+                }
+            }
 
-            fprintf(stderr,"FILTER\n");
+            flags[predicates[i].t1] = 1;
+
+            //fprintf(stderr,"FILTER\n");
         }
 
         freebuff(res);
     }
 
+    uint64_t checks[sums+1];
+
+    for(i=0; i<=sums; i++){
+        checks[i] = 0;
+        for(j=0; j<num_results[checksums[i][0]]; j++){
+            checks[i] += matrixes[relations[checksums[i][0]]].columns[checksums[i][1]][results[checksums[i][0]][j] - 1];
+        }
+        fprintf(stderr,"%lu ",checks[i]);
+    }
+
+    fprintf(stderr,"\n");
+
+
+
+
+    for(i=0; i<=rels; i++){
+        free(results[i]);
+        free(temp_results[i]);
+    }
     free(temp_col);
     free(relR.tuples);
     free(relS.tuples);
@@ -192,7 +283,7 @@ void initrelation(Relation *rel, int rows, uint64_t *values){
     rel->num_tuples = rows;
 
     for(i=0; i<rows; i++){
-        rel->tuples[i].key = i;
+        rel->tuples[i].key = i+1;
         rel->tuples[i].payload = values[i];
     }
 }
@@ -529,21 +620,30 @@ void insertbuff(Result* res, int rowid1, int rowid2){
     }
 }
 
-void printbuff(Result *res, FILE *fp, long sum){
+void copybuff(Result *res, int **table, int flag){
     int i;
+    int index = 0;
+    Result *curr = res;
 
-    for(i=0; i<res->counter; i++){
-        fprintf(fp, "%d\t%d\n", res->joins[i].key,res->joins[i].payload);
-        sum++;
+    if(flag == 1){
+        while(curr != NULL){
+            for(i=0; i<curr->counter; i++){
+                (*table)[index] = res->joins[i].key;
+                index++;
+            }
+            curr = curr->next;
+        }
     }
 
-    if(res->next != NULL){
-        printbuff(res->next, fp, sum);
+    if(flag == 2){
+        while(curr != NULL){
+            for(i=0; i<curr->counter; i++){
+                (*table)[index] = res->joins[i].payload;
+                index++;
+            }
+            curr = curr->next;
+        }
     }
-    else{
-        //printf("TOTAL JOINS: %ld\n", sum);
-    }
-
 }
 
 void freebuff(Result *res){
