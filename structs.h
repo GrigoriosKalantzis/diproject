@@ -62,7 +62,7 @@ int h1(int num, double n);
 int h2(int num, int margin);
 Result* createbuff(void);
 void insertbuff(Result* res, int rowid1, int rowid2);
-void copybuff(Result *res, int **table, int flag);
+void copybuff(Result *res, int *table[], int flag);
 void freebuff(Result *res);
 void quicksort(Relation* rel,int first,int last, int* rowids);
 int charcounter(char* str, char c);

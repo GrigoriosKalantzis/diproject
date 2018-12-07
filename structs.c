@@ -251,19 +251,22 @@ char* execQuery(char query[], Matrix *matrixes){
     }
 
     uint64_t checks[sums+1];
+	char buff[20];
+    char *output = malloc(50*sizeof(char));
+	output[0] = '\0';
 
     for(i=0; i<=sums; i++){
         checks[i] = 0;
         for(j=0; j<num_results[checksums[i][0]]; j++){
             checks[i] += matrixes[relations[checksums[i][0]]].columns[checksums[i][1]][results[checksums[i][0]][j] - 1];
         }
-        fprintf(stderr,"%lu ",checks[i]);
+       // fprintf(stderr,"%lu ",checks[i]);
+	sprintf(buff,"%lu ", checks[i]);
+        strcat(output, buff);
     }
+    strcat(output,"\n");
 
-    fprintf(stderr,"\n");
-
-
-
+    fprintf(stderr,"%s", output);
 
     for(i=0; i<=rels; i++){
         free(results[i]);
@@ -273,7 +276,7 @@ char* execQuery(char query[], Matrix *matrixes){
     free(relR.tuples);
     free(relS.tuples);
 
-    return "READ QUERY";
+    return output;
 }
 
 void initrelation(Relation *rel, int rows, uint64_t *values){
@@ -620,7 +623,7 @@ void insertbuff(Result* res, int rowid1, int rowid2){
     }
 }
 
-void copybuff(Result *res, int **table, int flag){
+void copybuff(Result *res, int *table[], int flag){
     int i;
     int index = 0;
     Result *curr = res;

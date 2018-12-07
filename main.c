@@ -34,19 +34,24 @@ int main(void){
         loadrelation(&matrixes,matrixnum,fname);
 
     }
-
+    buffer[0] = '\0';
 
     while(1){
         if(fgets(query, 100, stdin) != NULL){
 
-            //fprintf(stderr,"%s\n",query);
-            if(strcmp(query,"F\n") == 0) break;
+            if(strcmp(query,"F\n") == 0){
+                fprintf(stderr, "%s", buffer);
+                fprintf(stdout, "%s", buffer);
+                buffer[0] = '\0';
+                sleep(1);
+                continue;
+            }
 
             output = execQuery(query, matrixes);
-
-
+           //fprintf(stderr,"EXECED\n");
+            strcat(buffer, output);
+            free(output);
         }
-
     }
 
 
