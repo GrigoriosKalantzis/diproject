@@ -120,8 +120,8 @@ char* execQuery(char query[], Matrix *matrixes){
 
     for(i=0; i<=preds; i++){
 
-        if(predicates[i].flag == 0){
-
+        if(predicates[i].flag == 0){        //join predicate
+            //inserting the correct data and row ids for both relations
             if (flags[predicates[i].t1] == 0)
                 initrelation(&relR, matrixes[relations[predicates[i].t1]].num_rows, matrixes[relations[predicates[i].t1]].columns[predicates[i].c1]);
             else{
@@ -153,14 +153,11 @@ char* execQuery(char query[], Matrix *matrixes){
             num_results[predicates[i].t1] = getrescount(res);
             num_results[predicates[i].t2] = num_results[predicates[i].t1];
 
-
-            /****************************************/
-
-            if (flags[predicates[i].t1] == 0){
+            if (flags[predicates[i].t1] == 0){  //if the table had no previous results keep the current results as they are
                 results[predicates[i].t1] = realloc(results[predicates[i].t1], (num_results[predicates[i].t1]) * sizeof(int));
                 copybuff(res, &(results[predicates[i].t1]), 1);
             }
-            else{
+            else{      //if it has adjust the joined tables accordingly
                 for(j=0; j<=rels; j++){
                     if((j != predicates[i].t2) || (predicates[i].t1 == predicates[i].t2)){
                         if(flags[j]){
@@ -180,7 +177,7 @@ char* execQuery(char query[], Matrix *matrixes){
                 }
             }
 
-            if(predicates[i].t1 != predicates[i].t2){
+            if(predicates[i].t1 != predicates[i].t2){   //do the same for second table
                 if (flags[predicates[i].t2] == 0){
                     results[predicates[i].t2] = realloc(results[predicates[i].t2], (num_results[predicates[i].t2]) * sizeof(int));
                     copybuff(res, &(results[predicates[i].t2]), 2);
@@ -203,9 +200,9 @@ char* execQuery(char query[], Matrix *matrixes){
             flags[predicates[i].t1] = 1;
             flags[predicates[i].t2] = 1;
         }
-        else if(predicates[i].flag == 1){
+        else if(predicates[i].flag == 1){      //filter predicate
 
-            if (flags[predicates[i].t1] == 0)
+            if (flags[predicates[i].t1] == 0)   //give correct data as input
                 initrelation(&relR, matrixes[relations[predicates[i].t1]].num_rows, matrixes[relations[predicates[i].t1]].columns[predicates[i].c1]);
             else{
                 temp_col = realloc(temp_col, num_results[predicates[i].t1]*sizeof(uint64_t));
@@ -219,12 +216,11 @@ char* execQuery(char query[], Matrix *matrixes){
             num_results[predicates[i].t1] = getrescount(res);
 
 
-            /***************************/
             if (flags[predicates[i].t1] == 0){
                 results[predicates[i].t1] = realloc(results[predicates[i].t1], (num_results[predicates[i].t1]) * sizeof(int));
                 copybuff(res, &(results[predicates[i].t1]), 1);
             }
-            else{
+            else{   //adjust joined tables accordingly
                 for(j=0; j<=rels; j++){
                     if(flags[j]){
                         temp_results[j] = realloc(temp_results[j], (num_results[predicates[i].t1]) * sizeof(int));
@@ -260,8 +256,10 @@ char* execQuery(char query[], Matrix *matrixes){
         for(j=0; j<num_results[checksums[i][0]]; j++){
             checks[i] += matrixes[relations[checksums[i][0]]].columns[checksums[i][1]][results[checksums[i][0]][j] - 1];
         }
-       // fprintf(stderr,"%lu ",checks[i]);
-	sprintf(buff,"%lu ", checks[i]);
+        if (checks[i])
+            sprintf(buff,"%lu ", checks[i]);
+        else
+            sprintf(buff,"NULL ");
         strcat(output, buff);
     }
     strcat(output,"\n");

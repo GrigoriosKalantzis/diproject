@@ -24,7 +24,7 @@ int main(void){
 
     matrixes = malloc(sizeof(Matrix));
 
-    while(1){
+    while(1){       //getting relation file names
         fgets(filename,10,stdin);
         if (strcmp(filename,"Done\n") == 0) break;
 
@@ -36,63 +36,22 @@ int main(void){
     }
     buffer[0] = '\0';
 
-    while(1){
+    while(1){       //getting query batches
         if(fgets(query, 100, stdin) != NULL){
 
             if(strcmp(query,"F\n") == 0){
-                fprintf(stderr, "%s", buffer);
-                fprintf(stdout, "%s", buffer);
+                //fprintf(stderr, "%s", buffer);
+                fprintf(stdout, "%s", buffer);      //when batch is over print results
                 buffer[0] = '\0';
                 sleep(1);
                 continue;
             }
 
             output = execQuery(query, matrixes);
-           //fprintf(stderr,"EXECED\n");
             strcat(buffer, output);
             free(output);
         }
     }
-
-
-    /*srand(time(NULL));
-    int Rrows = 300;
-    int Srows = 200;
-    int R[Rrows];
-    int S[Srows];
-    for(i = 0; i < Rrows; i++){
-        R[i] = rand() % margin;
-    }
-    for(i = 0; i < Srows; i++){
-        S[i] = rand() % margin;
-    }
-
-
-    Relation relR,relS;
-    Result* res;
-
-//making tuples with join columns and row ids
-    relR.num_tuples = Rrows;
-    relR.tuples = malloc(relR.num_tuples * sizeof(Tuple));
-    for(i = 0; i < Rrows; i++){
-        relR.tuples[i].key = i+1;
-        relR.tuples[i].payload = R[i];
-    }
-
-    relS.num_tuples = Srows;
-    relS.tuples = malloc(relS.num_tuples * sizeof(Tuple));
-    for(i = 0; i < Srows; i++){
-        relS.tuples[i].key = i+1;
-        relS.tuples[i].payload = S[i];
-    }
-
-//Join
-    res = RadixHashJoin(&relR, &relS);
-
-    freebuff(res);
-
-    free(relR.tuples);
-    free(relS.tuples);*/
 
     for(i = 0; i < matrixnum; i++){
         for(j = 0; j < matrixes[i].num_columns; j++){

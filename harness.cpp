@@ -27,7 +27,7 @@ static int set_nonblocking(int fd)
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 //---------------------------------------------------------------------------
-static ssize_t read_bytes(int fd, void *buffer, size_t num_bytes)
+/*static ssize_t read_bytes(int fd, void *buffer, size_t num_bytes)
 // Read a given number of bytes to the specified file descriptor
 {
   char *p = (char *)buffer;
@@ -42,7 +42,7 @@ static ssize_t read_bytes(int fd, void *buffer, size_t num_bytes)
   }
 
   return num_bytes;
-}
+}*/
 //---------------------------------------------------------------------------
 static ssize_t write_bytes(int fd, const void *buffer, size_t num_bytes)
 // Write a given number of bytes to the specified file descriptor
@@ -211,6 +211,7 @@ int main(int argc, char *argv[]) {
   unsigned long query_no = 0;
   unsigned long failure_cnt = 0;
 
+
   // Loop over all batches
   for (unsigned long batch = 0; batch != input_batches.size() && failure_cnt < MAX_FAILED_QUERIES; ++batch) {
     string output;  // raw output is collected here
@@ -282,10 +283,10 @@ int main(int argc, char *argv[]) {
                   << ", actual: " << val << endl;
         ++failure_cnt;
       }
-      if (matched)
+      /*if (matched)
       {
           cout << endl << val << endl <<  endl << result_batches[batch][i];
-      }
+      }*/
       ++query_no;
     }
   }
