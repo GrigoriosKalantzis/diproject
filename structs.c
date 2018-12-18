@@ -262,7 +262,8 @@ char* execQuery(char query[], Matrix *matrixes){
             sprintf(buff,"NULL ");
         strcat(output, buff);
     }
-    strcat(output,"\n");
+    //strcat(output,"\n");
+    output[strlen(output) - 1] = '\n';
 
     fprintf(stderr,"%s", output);
 

@@ -41,7 +41,8 @@ int main(void){
 
             if(strcmp(query,"F\n") == 0){
                 //fprintf(stderr, "%s", buffer);
-                fprintf(stdout, "%s", buffer);      //when batch is over print results
+                //fprintf(stdout, "%s", buffer);      //when batch is over print results
+                write(1, buffer, strlen(buffer));
                 buffer[0] = '\0';
                 sleep(1);
                 continue;
