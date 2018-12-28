@@ -222,6 +222,7 @@ char* execQuery(char query[], Matrix *matrixes){
         num_results[joins[i].t1] = getrescount(res);
         num_results[joins[i].t2] = num_results[joins[i].t1];
 
+
         if (flags[joins[i].t1] == 0){  //if the table had no previous results keep the current results as they are
             results[joins[i].t1] = realloc(results[joins[i].t1], (num_results[joins[i].t1]) * sizeof(int));
             copybuff(res, &(results[joins[i].t1]), 1);
@@ -252,20 +253,34 @@ char* execQuery(char query[], Matrix *matrixes){
                 copybuff(res, &(results[joins[i].t2]), 2);
             }
             else{
-                for(j=0; j<=rels; j++){
-                    if((j != joins[i].t1)){
-                        if(joined[joins[i].t2][j]){
-                            temp_results[j] = realloc(temp_results[j], (num_results[joins[i].t2]) * sizeof(int));
-                            copybuff(res ,&(temp_results[j]), 2);
-                            for(k=0; k<num_results[joins[i].t2]; k++){
-                                temp_results[j][k] = results[j][temp_results[j][k]-1];
+                if(joined[joins[i].t1][joins[i].t2]){
+                    temp_results[joins[i].t2] = realloc(temp_results[joins[i].t2], (num_results[joins[i].t2]) * sizeof(int));
+                    copybuff(res ,&(temp_results[joins[i].t2]), 2);
+                    for(k=0; k<num_results[joins[i].t2]; k++){
+                        temp_results[joins[i].t2][k] = results[joins[i].t2][temp_results[joins[i].t2][k]-1];
+                    }
+                    //&(results[j]) = &(temp_results[j]);
+                    results[joins[i].t2] = realloc(results[joins[i].t2], (num_results[joins[i].t2]) * sizeof(int));
+                    for(k=0; k<num_results[joins[i].t2]; k++){
+                        results[joins[i].t2][k] = temp_results[joins[i].t2][k];
+                    }
+                }
+                else{
+                    for(j=0; j<=rels; j++){
+                        if((j != joins[i].t1)){
+                            if(joined[joins[i].t2][j]){
+                                temp_results[j] = realloc(temp_results[j], (num_results[joins[i].t2]) * sizeof(int));
+                                copybuff(res ,&(temp_results[j]), 2);
+                                for(k=0; k<num_results[joins[i].t2]; k++){
+                                    temp_results[j][k] = results[j][temp_results[j][k]-1];
+                                }
+                                //&(results[j]) = &(temp_results[j]);
+                                results[j] = realloc(results[j], (num_results[joins[i].t2]) * sizeof(int));
+                                for(k=0; k<num_results[joins[i].t2]; k++){
+                                    results[j][k] = temp_results[j][k];
+                                }
+                                num_results[j] = num_results[joins[i].t2];
                             }
-                            //&(results[j]) = &(temp_results[j]);
-                            results[j] = realloc(results[j], (num_results[joins[i].t2]) * sizeof(int));
-                            for(k=0; k<num_results[joins[i].t2]; k++){
-                                results[j][k] = temp_results[j][k];
-                            }
-                            num_results[j] = num_results[joins[i].t2];
                         }
                     }
                 }
@@ -276,136 +291,19 @@ char* execQuery(char query[], Matrix *matrixes){
         flags[joins[i].t2] = 1;
         joined[joins[i].t1][joins[i].t2] = 1;
         joined[joins[i].t2][joins[i].t1] = 1;
+        for(j=0; j<=rels; j++){
+            if(joined[joins[i].t2][j]){
+                joined[joins[i].t1][j] = 1;
+                joined[j][joins[i].t1] = 1;
+            }
+            if(joined[joins[i].t1][j]){
+                joined[joins[i].t2][j] = 1;
+                joined[j][joins[i].t2] = 1;
+            }
+        }
         freebuff(res);
     }
 
-    /*for(i=0; i<=preds; i++){
-
-        if(predicates[i].flag == 0){        //join predicate
-            //inserting the correct data and row ids for both relations
-            if (flags[predicates[i].t1] == 0)
-                initrelation(&relR, matrixes[relations[predicates[i].t1]].num_rows, matrixes[relations[predicates[i].t1]].columns[predicates[i].c1]);
-            else{
-                temp_col = realloc(temp_col, num_results[predicates[i].t1]*sizeof(uint64_t));
-                for(j=0; j<num_results[predicates[i].t1]; j++)
-                    temp_col[j] = matrixes[relations[predicates[i].t1]].columns[predicates[i].c1][results[predicates[i].t1][j] - 1];
-                initrelation(&relR, num_results[predicates[i].t1], temp_col);
-            }
-
-            if (flags[predicates[i].t2] == 0)
-                initrelation(&relS, matrixes[relations[predicates[i].t2]].num_rows, matrixes[relations[predicates[i].t2]].columns[predicates[i].c2]);
-            else{
-                temp_col = realloc(temp_col, num_results[predicates[i].t2]*sizeof(uint64_t));
-                for(j=0; j<num_results[predicates[i].t2]; j++)
-                    temp_col[j] = matrixes[relations[predicates[i].t2]].columns[predicates[i].c2][results[predicates[i].t2][j] - 1];
-                initrelation(&relS, num_results[predicates[i].t2], temp_col);
-            }
-
-            if((flags[predicates[i].t1]) && (flags[predicates[i].t2])){
-                //fprintf(stderr,"SELF\n");
-                res = SelfJoin(&relR, &relS);
-            }
-            else{
-                //fprintf(stderr,"RADIX\n");
-                res = RadixHashJoin(&relR, &relS);
-            }
-
-
-            num_results[predicates[i].t1] = getrescount(res);
-            num_results[predicates[i].t2] = num_results[predicates[i].t1];
-
-            if (flags[predicates[i].t1] == 0){  //if the table had no previous results keep the current results as they are
-                results[predicates[i].t1] = realloc(results[predicates[i].t1], (num_results[predicates[i].t1]) * sizeof(int));
-                copybuff(res, &(results[predicates[i].t1]), 1);
-            }
-            else{      //if it has adjust the joined tables accordingly
-                for(j=0; j<=rels; j++){
-                    if((j != predicates[i].t2) || (predicates[i].t1 == predicates[i].t2)){
-                        if(flags[j]){
-                            temp_results[j] = realloc(temp_results[j], (num_results[predicates[i].t1]) * sizeof(int));
-                            copybuff(res ,&(temp_results[j]), 1);
-                            for(k=0; k<num_results[predicates[i].t1]; k++){
-                                temp_results[j][k] = results[j][temp_results[j][k]-1];
-                            }
-                            //&(results[j]) = &(temp_results[j]);
-                            results[j] = realloc(results[j], (num_results[predicates[i].t1]) * sizeof(int));
-                            for(k=0; k<num_results[predicates[i].t1]; k++){
-                                results[j][k] = temp_results[j][k];
-                            }
-                            num_results[j] = num_results[predicates[i].t1];
-                        }
-                    }
-                }
-            }
-
-            if(predicates[i].t1 != predicates[i].t2){   //do the same for second table
-                if (flags[predicates[i].t2] == 0){
-                    results[predicates[i].t2] = realloc(results[predicates[i].t2], (num_results[predicates[i].t2]) * sizeof(int));
-                    copybuff(res, &(results[predicates[i].t2]), 2);
-                }
-                else{
-                    temp_results[predicates[i].t2] = realloc(temp_results[predicates[i].t2], (num_results[predicates[i].t2]) * sizeof(int));
-                    copybuff(res ,&(temp_results[predicates[i].t2]), 2);
-                    for(k=0; k<num_results[predicates[i].t2]; k++){
-                        temp_results[predicates[i].t2][k] = results[predicates[i].t2][temp_results[predicates[i].t2][k]-1];
-                    }
-                    //&(results[predicates[i].t2]) = &(temp_results[predicates[i].t2]);
-                    results[predicates[i].t2] = realloc(results[predicates[i].t2], (num_results[predicates[i].t2]) * sizeof(int));
-                    for(k=0; k<num_results[predicates[i].t2]; k++){
-                        results[predicates[i].t2][k] = temp_results[predicates[i].t2][k];
-                    }
-                }
-            }
-
-
-            flags[predicates[i].t1] = 1;
-            flags[predicates[i].t2] = 1;
-        }
-        else if(predicates[i].flag == 1){      //filter predicate
-
-            if (flags[predicates[i].t1] == 0)   //give correct data as input
-                initrelation(&relR, matrixes[relations[predicates[i].t1]].num_rows, matrixes[relations[predicates[i].t1]].columns[predicates[i].c1]);
-            else{
-                temp_col = realloc(temp_col, num_results[predicates[i].t1]*sizeof(uint64_t));
-                for(j=0; j<num_results[predicates[i].t1]; j++)
-                    temp_col[j] = matrixes[relations[predicates[i].t1]].columns[predicates[i].c1][results[predicates[i].t1][j] - 1];
-                initrelation(&relR, num_results[predicates[i].t1], temp_col);
-            }
-
-            res = Filter(&relR, predicates[i].t2, predicates[i].c2);
-
-            num_results[predicates[i].t1] = getrescount(res);
-
-
-            if (flags[predicates[i].t1] == 0){
-                results[predicates[i].t1] = realloc(results[predicates[i].t1], (num_results[predicates[i].t1]) * sizeof(int));
-                copybuff(res, &(results[predicates[i].t1]), 1);
-            }
-            else{   //adjust joined tables accordingly
-                for(j=0; j<=rels; j++){
-                    if(flags[j]){
-                        temp_results[j] = realloc(temp_results[j], (num_results[predicates[i].t1]) * sizeof(int));
-                        copybuff(res ,&(temp_results[j]), 1);
-                        for(k=0; k<num_results[predicates[i].t1]; k++){
-                            temp_results[j][k] = results[j][temp_results[j][k]-1];
-                        }
-                        //&(results[j]) = &(temp_results[j]);
-                        results[j] = realloc(results[j], (num_results[predicates[i].t1]) * sizeof(int));
-                        for(k=0; k<num_results[predicates[i].t1]; k++){
-                            results[j][k] = temp_results[j][k];
-                        }
-                        num_results[j] = num_results[predicates[i].t1];
-                    }
-                }
-            }
-
-            flags[predicates[i].t1] = 1;
-
-            //fprintf(stderr,"FILTER\n");
-        }
-
-        freebuff(res);
-    }*/
 
     uint64_t checks[sums+1];
 	char buff[20];
@@ -423,7 +321,6 @@ char* execQuery(char query[], Matrix *matrixes){
             sprintf(buff,"NULL ");
         strcat(output, buff);
     }
-    //strcat(output,"\n");
     output[strlen(output) - 1] = '\n';
 
     fprintf(stderr,"%s", output);
@@ -467,7 +364,7 @@ int getrescount(Result *res){
 Result* RadixHashJoin(Relation *relR, Relation *relS){
 
 //number of final bits that the hash function will use
-    int n = 8;
+    int n = 10;
 //margin of hash2 values
     int h2margin = 101;
 
@@ -579,14 +476,13 @@ Result* Filter(Relation *rel, int operand, int constant){
 
 Result* SelfJoin(Relation *relR, Relation *relS){
 
-    int i,j;
+    int i;
     Result *res;
     res = createbuff();
 
     for(i = 0; i < relR->num_tuples; i++){
-        for(j = 0; j < relS->num_tuples; j++){
-            if(relR->tuples[i].payload == relS->tuples[j].payload)
-                insertbuff(res, relR->tuples[i].key, relS->tuples[j].key);
+        if(relR->tuples[i].payload == relS->tuples[i].payload){
+            insertbuff(res, relR->tuples[i].key, relS->tuples[i].key);
         }
     }
     return res;

@@ -29,8 +29,17 @@ struct matrix{
     uint64_t num_rows;
     uint64_t num_columns;
     uint64_t **columns;
+    struct control *controls;
 };
 typedef struct matrix Matrix;
+
+struct control{
+    int I;
+    int U;
+    int F;
+    int D;
+};
+typedef struct control Control;
 
 struct index{
     Relation R;
