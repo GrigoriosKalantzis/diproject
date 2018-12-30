@@ -59,6 +59,7 @@ int main(void){
             free(matrixes[i].columns[j]);
         }
         free(matrixes[i].columns);
+        free(matrixes[i].controls);
     }
     free(matrixes);
 
