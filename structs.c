@@ -38,19 +38,32 @@ void loadrelation(Matrix **matrixes, int matrixnum, char* fname){
         perror("relation file does not contain a valid header");
         exit(1);
     }
+	
+	uint64_t min, max;
+	
 
     (*matrixes)[matrixnum-1].num_rows = *(uint64_t*)(addr);
     addr+=sizeof(uint64_t);
     (*matrixes)[matrixnum-1].num_columns = *(uint64_t*)(addr);
     addr+=sizeof(uint64_t);
     (*matrixes)[matrixnum-1].columns = malloc((*matrixes)[matrixnum-1].num_columns * sizeof(uint64_t*));
+	(*matrixes)[matrixnum-1].controls = malloc((*matrixes)[matrixnum-1].num_columns * sizeof(Control));
     for(i = 0; i < (*matrixes)[matrixnum-1].num_columns; i++){
+		min = 1000000;
+		max = 0;
 
         (*matrixes)[matrixnum-1].columns[i] = malloc((*matrixes)[matrixnum-1].num_rows * sizeof(uint64_t));
         for(j = 0; j < (*matrixes)[matrixnum-1].num_rows; j++){
             (*matrixes)[matrixnum-1].columns[i][j] = *(uint64_t*)(addr);
+			if(min > (*matrixes)[matrixnum-1].columns[i][j]) min = (*matrixes)[matrixnum-1].columns[i][j];
+			if(max < (*matrixes)[matrixnum-1].columns[i][j]) max = (*matrixes)[matrixnum-1].columns[i][j];
             addr+=sizeof(uint64_t);
         }
+		
+		(*matrixes)[matrixnum-1].controls[i].I = min;
+		(*matrixes)[matrixnum-1].controls[i].U = max;
+		(*matrixes)[matrixnum-1].controls[i].F = (*matrixes)[matrixnum-1].num_rows;
+		
     }
     close(fd);
 }
@@ -213,7 +226,7 @@ char* execQuery(char query[], Matrix *matrixes){
         if(joined[joins[i].t1][joins[i].t2]){
             //fprintf(stderr,"SELF\n");
             res = SelfJoin(&relR, &relS);
-        }
+        }		
         else{
             //fprintf(stderr,"RADIX\n");
             res = RadixHashJoin(&relR, &relS);
