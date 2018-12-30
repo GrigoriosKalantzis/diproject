@@ -40,7 +40,8 @@ void loadrelation(Matrix **matrixes, int matrixnum, char* fname){
     }
 	
 	uint64_t min, max;
-	
+	int dcounter;
+	int *dtable = malloc(4*sizeof(int));
 
     (*matrixes)[matrixnum-1].num_rows = *(uint64_t*)(addr);
     addr+=sizeof(uint64_t);
@@ -64,7 +65,20 @@ void loadrelation(Matrix **matrixes, int matrixnum, char* fname){
 		(*matrixes)[matrixnum-1].controls[i].U = max;
 		(*matrixes)[matrixnum-1].controls[i].F = (*matrixes)[matrixnum-1].num_rows;
 		
+		dtable = realloc(dtable, (max-min+1) * sizeof(int));
+		for(j = 0; j < (max-min+1); j++){
+			dtable[j] = 0;
+		}
+		for(j = 0; j < (*matrixes)[matrixnum-1].num_rows; j++){
+			dtable[((*matrixes)[matrixnum-1].columns[i][j]) - min] = 1;
+		}
+		dcounter = 0;
+		for(j = 0; j < (max-min+1); j++){
+			if(dtable[j]) dcounter++;
+		}
+		(*matrixes)[matrixnum-1].controls[i].D = dcounter;
     }
+	free(dtable);
     close(fd);
 }
 
