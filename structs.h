@@ -57,6 +57,8 @@ typedef struct result Result;
 
 void loadrelation(Matrix **matrixes, int matrixnum, char* fname);
 char* execQuery(char query[], Matrix *matrixes);
+void equalfilter(Control **controls, int column, int constant, int num_columns);
+void unequalfilter(Control **controls, int column, int operand, int constant, int num_columns);
 void initrelation(Relation *rel, int rows, uint64_t *values);
 int getrescount(Result *res);
 Result* RadixHashJoin(Relation *relR, Relation *relS);

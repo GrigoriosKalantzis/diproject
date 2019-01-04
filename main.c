@@ -10,8 +10,6 @@
 
 int main(void){
 
-
-    //int margin = 10000;
     int i,j;
 
     Matrix *matrixes;
@@ -40,8 +38,6 @@ int main(void){
         if(fgets(query, 100, stdin) != NULL){
 
             if(strcmp(query,"F\n") == 0){
-                //fprintf(stderr, "%s", buffer);
-                //fprintf(stdout, "%s", buffer);      //when batch is over print results
                 write(1, buffer, strlen(buffer));
                 buffer[0] = '\0';
                 sleep(1);
@@ -62,10 +58,6 @@ int main(void){
         free(matrixes[i].controls);
     }
     free(matrixes);
-
-
-    fprintf(stderr,"END OF MAIN\n");
-
 
     return 0;
 }

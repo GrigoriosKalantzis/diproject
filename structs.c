@@ -38,7 +38,7 @@ void loadrelation(Matrix **matrixes, int matrixnum, char* fname){
         perror("relation file does not contain a valid header");
         exit(1);
     }
-	
+
 	uint64_t min, max;
 	int dcounter;
 	int *dtable = malloc(4*sizeof(int));
@@ -60,11 +60,11 @@ void loadrelation(Matrix **matrixes, int matrixnum, char* fname){
 			if(max < (*matrixes)[matrixnum-1].columns[i][j]) max = (*matrixes)[matrixnum-1].columns[i][j];
             addr+=sizeof(uint64_t);
         }
-		
+
 		(*matrixes)[matrixnum-1].controls[i].I = min;
 		(*matrixes)[matrixnum-1].controls[i].U = max;
 		(*matrixes)[matrixnum-1].controls[i].F = (*matrixes)[matrixnum-1].num_rows;
-		
+
 		dtable = realloc(dtable, (max-min+1) * sizeof(int));
 		for(j = 0; j < (max-min+1); j++){
 			dtable[j] = 0;
@@ -103,7 +103,6 @@ char* execQuery(char query[], Matrix *matrixes){
     relations[0] = atoi(strtok(rel," "));
     for(i=1; i<=rels; i++){
         relations[i] = atoi(strtok(NULL," "));
-        //printf("%d\n", relations[i]);
     }
 
 //predicates
@@ -143,8 +142,6 @@ char* execQuery(char query[], Matrix *matrixes){
         }
     }
 
-
-
 //checksums
     int checksums[sums+1][2];
     s = strtok(sum, " ");
@@ -155,6 +152,29 @@ char* execQuery(char query[], Matrix *matrixes){
         checksums[i][0] = s[0] - '0';
         checksums[i][1] = s[2] - '0';
     }
+
+//ektimhsh plithikothtas
+
+    Control *controls[rels+1];
+    for(i=0; i<=rels; i++){
+        controls[i] = malloc(matrixes[relations[i]].num_columns * sizeof(Control));
+        for(j=0; j<matrixes[relations[i]].num_columns; j++){
+            controls[i][j].I = matrixes[relations[i]].controls[j].I;
+            controls[i][j].U = matrixes[relations[i]].controls[j].U;
+            controls[i][j].F = matrixes[relations[i]].controls[j].F;
+            controls[i][j].D = matrixes[relations[i]].controls[j].D;
+        }
+    }
+    for(i=0; i<filtersno; i++){
+        if(filters[i].t2 == 2){
+            fprintf(stderr, "BEFORE %d %d %d %d\n", controls[filters[i].t1][filters[i].c1].I, controls[filters[i].t1][filters[i].c1].U , controls[filters[i].t1][filters[i].c1].F, controls[filters[i].t1][filters[i].c1].D);
+            equalfilter(&(controls[filters[i].t1]), filters[i].c1, filters[i].c2, matrixes[filters[i].t1].num_columns);
+            fprintf(stderr, "AFTER %d %d %d %d\n", controls[filters[i].t1][filters[i].c1].I, controls[filters[i].t1][filters[i].c1].U , controls[filters[i].t1][filters[i].c1].F, controls[filters[i].t1][filters[i].c1].D);
+        }
+        else
+            unequalfilter(&(controls[filters[i].t1]), filters[i].c1, filters[i].t2, filters[i].c2, matrixes[filters[i].t1].num_columns);
+    }
+
 
 //execution
     int joined[rels+1][rels+1];
@@ -240,7 +260,7 @@ char* execQuery(char query[], Matrix *matrixes){
         if(joined[joins[i].t1][joins[i].t2]){
             //fprintf(stderr,"SELF\n");
             res = SelfJoin(&relR, &relS);
-        }		
+        }
         else{
             //fprintf(stderr,"RADIX\n");
             res = RadixHashJoin(&relR, &relS);
@@ -350,9 +370,10 @@ char* execQuery(char query[], Matrix *matrixes){
     }
     output[strlen(output) - 1] = '\n';
 
-    fprintf(stderr,"%s", output);
+    //fprintf(stderr,"%s", output);
 
     for(i=0; i<=rels; i++){
+        free(controls[i]);
         free(results[i]);
         free(temp_results[i]);
     }
@@ -362,6 +383,37 @@ char* execQuery(char query[], Matrix *matrixes){
 
     return output;
 }
+
+void equalfilter(Control **controls, int column, int constant, int num_columns){
+    int i;
+    double temp, exp;
+    int oldfa = (*controls)[column].F;
+    (*controls)[column].F = ((*controls)[column].F) / ((*controls)[column].D);
+    (*controls)[column].D = 1;
+    (*controls)[column].I = constant;
+    (*controls)[column].U = constant;
+
+    for(i=0; i<num_columns; i++){
+        if(i != column){
+
+            temp = (*controls)[column].F / oldfa;
+            exp = (*controls)[i].F / (*controls)[i].D;
+            temp = pow(1-temp, exp);
+            (*controls)[i].D = (*controls)[i].D * (1 - (int)temp);
+            (*controls)[i].F = (*controls)[column].F;
+
+        }
+    }
+
+
+}
+
+void unequalfilter(Control **controls, int column, int operand, int constant, int num_columns){
+
+
+
+}
+
 
 void initrelation(Relation *rel, int rows, uint64_t *values){
 
