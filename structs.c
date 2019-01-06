@@ -156,6 +156,7 @@ char* execQuery(char query[], Matrix *matrixes){
 //ektimhsh plithikothtas
 
     Control *controls[rels+1];
+
     for(i=0; i<=rels; i++){
         controls[i] = malloc(matrixes[relations[i]].num_columns * sizeof(Control));
         for(j=0; j<matrixes[relations[i]].num_columns; j++){
@@ -165,15 +166,19 @@ char* execQuery(char query[], Matrix *matrixes){
             controls[i][j].D = matrixes[relations[i]].controls[j].D;
         }
     }
+
     for(i=0; i<filtersno; i++){
         if(filters[i].t2 == 2){
-            fprintf(stderr, "BEFORE %d %d %d %d\n", controls[filters[i].t1][filters[i].c1].I, controls[filters[i].t1][filters[i].c1].U , controls[filters[i].t1][filters[i].c1].F, controls[filters[i].t1][filters[i].c1].D);
-            equalfilter(&(controls[filters[i].t1]), filters[i].c1, filters[i].c2, matrixes[filters[i].t1].num_columns);
-            fprintf(stderr, "AFTER %d %d %d %d\n", controls[filters[i].t1][filters[i].c1].I, controls[filters[i].t1][filters[i].c1].U , controls[filters[i].t1][filters[i].c1].F, controls[filters[i].t1][filters[i].c1].D);
+            equalfilter(&(controls[filters[i].t1]), filters[i].c1, filters[i].c2, matrixes[relations[filters[i].t1]].num_columns);
         }
-        else
-            unequalfilter(&(controls[filters[i].t1]), filters[i].c1, filters[i].t2, filters[i].c2, matrixes[filters[i].t1].num_columns);
+        else{
+            //fprintf(stderr, "BEFORE %d %d %d %d\n", controls[filters[i].t1][filters[i].c1].I, controls[filters[i].t1][filters[i].c1].U , controls[filters[i].t1][filters[i].c1].F, controls[filters[i].t1][filters[i].c1].D);
+            unequalfilter(&(controls[filters[i].t1]), filters[i].c1, filters[i].t2, filters[i].c2, matrixes[relations[filters[i].t1]].num_columns);
+            //fprintf(stderr, "AFTER %d %d %d %d\n", controls[filters[i].t1][filters[i].c1].I, controls[filters[i].t1][filters[i].c1].U , controls[filters[i].t1][filters[i].c1].F, controls[filters[i].t1][filters[i].c1].D);
+        }
     }
+
+
 
 
 //execution
@@ -388,19 +393,27 @@ void equalfilter(Control **controls, int column, int constant, int num_columns){
     int i;
     double temp, exp;
     int oldfa = (*controls)[column].F;
-    (*controls)[column].F = ((*controls)[column].F) / ((*controls)[column].D);
+	if((*controls)[column].D)
+    	(*controls)[column].F = ((*controls)[column].F) / ((*controls)[column].D);
     (*controls)[column].D = 1;
     (*controls)[column].I = constant;
     (*controls)[column].U = constant;
 
     for(i=0; i<num_columns; i++){
         if(i != column){
-
-            temp = (*controls)[column].F / oldfa;
-            exp = (*controls)[i].F / (*controls)[i].D;
+			if(oldfa)
+            	temp = (double)((*controls)[column].F) / (double)oldfa;
+			else
+				temp = (double)((*controls)[column].F);
+			if((*controls)[i].D)
+            	exp = (double)((*controls)[i].F) / (double)((*controls)[i].D);
+			else
+				exp = (double)((*controls)[i].F);
             temp = pow(1-temp, exp);
-            (*controls)[i].D = (*controls)[i].D * (1 - (int)temp);
+            (*controls)[i].D = (*controls)[i].D * (1 - temp);
             (*controls)[i].F = (*controls)[column].F;
+			if(((*controls)[i].D == 0) && ((*controls)[i].F != 0))
+				(*controls)[i].D = 1;
 
         }
     }
@@ -409,9 +422,206 @@ void equalfilter(Control **controls, int column, int constant, int num_columns){
 }
 
 void unequalfilter(Control **controls, int column, int operand, int constant, int num_columns){
+    int i;
+    double temp0, temp, exp;
+    int oldfa = (*controls)[column].F;
+
+    if(operand == 0){           //greater
+        if(constant < (*controls)[column].I)
+            constant = (*controls)[column].I;
+
+        if((*controls)[column].U == (*controls)[column].I){
+            (*controls)[column].F = ((*controls)[column].U - constant) * (*controls)[column].F;
+            (*controls)[column].D = ((*controls)[column].U - constant) * (*controls)[column].D;
+            (*controls)[column].I = constant;
+        }
+        else{
+            temp0 = (double)((*controls)[column].U - constant) / (double)((*controls)[column].U - (*controls)[column].I);
+            (*controls)[column].F = temp0 * (*controls)[column].F;
+            (*controls)[column].D = temp0 * (*controls)[column].D;
+            (*controls)[column].I = constant;
+        }
 
 
+    }
+    else{                //less
+        if(constant > (*controls)[column].U)
+            constant = (*controls)[column].U;
 
+        if((*controls)[column].U == (*controls)[column].I){
+            (*controls)[column].F = (constant - (*controls)[column].I) * (*controls)[column].F;
+            (*controls)[column].D = (constant - (*controls)[column].I) * (*controls)[column].D;
+            (*controls)[column].U = constant;
+        }
+        else{
+            temp0 = (double)(constant - (*controls)[column].I) / (double)((*controls)[column].U - (*controls)[column].I);
+            (*controls)[column].F = temp0 * (*controls)[column].F;
+            (*controls)[column].D = temp0 * (*controls)[column].D;
+            (*controls)[column].U = constant;
+        }
+    }
+
+    for(i=0; i<num_columns; i++){
+        if(i != column){
+			if(oldfa)
+            	temp = (double)((*controls)[column].F) / (double)oldfa;
+			else
+				temp = (double)((*controls)[column].F);
+			if((*controls)[i].D)
+            	exp = (double)((*controls)[i].F) / (double)((*controls)[i].D);
+			else
+				exp = (double)((*controls)[i].F);
+            temp = pow(1-temp, exp);
+            (*controls)[i].D = (*controls)[i].D * (1 - temp);
+            (*controls)[i].F = (*controls)[column].F;
+			if(((*controls)[i].D == 0) && ((*controls)[i].F != 0))
+				(*controls)[i].D = 1;
+
+        }
+    }
+}
+
+void selfcontrol(Control **controls1, Control **controls2, int column1, int column2, int num_columns1, int num_columns2){
+
+    int i, n, min, max;
+    double temp, exp;
+    int oldfa = (*controls1)[column1].F;
+
+    if((*controls1)[column1].I > (*controls2)[column2].I){
+        (*controls2)[column2].I = (*controls1)[column1].I;
+        min = (*controls1)[column1].I;
+    }
+    else{
+        (*controls1)[column1].I = (*controls2)[column2].I;
+        min = (*controls2)[column2].I;
+    }
+    if((*controls1)[column1].U < (*controls2)[column2].U{
+        (*controls2)[column2].U = (*controls1)[column1].U;
+        max = (*controls1)[column1].U;
+    }
+    else{
+        (*controls1)[column1].U = (*controls2)[column2].U;
+        max = (*controls2)[column2].U;
+    }
+    n = max - min + 1;
+    (*controls1)[column1].F = (*controls1)[column1].F / n;
+    (*controls2)[column2].F = (*controls1)[column1].F;
+
+    if(oldfa)
+        temp = (double)((*controls1)[column1].F) / (double)oldfa;
+    else
+        temp = (double)((*controls1)[column1].F);
+    if((*controls1)[column1].D)
+        exp = (double)(oldfa) / (double)((*controls1)[column1].D);
+    else
+        exp = (double)(oldfa);
+    temp = pow(1-temp, exp);
+    (*controls1)[column1].D = (*controls1)[column1].D * (1 - temp);
+    if(((*controls1)[column1].D == 0) && ((*controls1)[column1].F != 0))
+        (*controls1)[column1].D = 1;
+    (*controls2)[column2].D = (*controls1)[column1].D;
+
+    for(i=0; i<num_columns1; i++){
+        if(i != column1){
+			if(oldfa)
+            	temp = (double)((*controls1)[column1].F) / (double)oldfa;
+			else
+				temp = (double)((*controls1)[column1].F);
+			if((*controls1)[i].D)
+            	exp = (double)((*controls1)[i].F) / (double)((*controls1)[i].D);
+			else
+				exp = (double)((*controls1)[i].F);
+            temp = pow(1-temp, exp);
+            (*controls1)[i].D = (*controls1)[i].D * (1 - temp);
+            (*controls1)[i].F = (*controls1)[column1].F;
+			if(((*controls1)[i].D == 0) && ((*controls1)[i].F != 0))
+				(*controls1)[i].D = 1;
+        }
+    }
+    for(i=0; i<num_columns2; i++){
+        if(i != column2){
+			if(oldfa)
+            	temp = (double)((*controls2)[column2].F) / (double)oldfa;
+			else
+				temp = (double)((*controls2)[column2].F);
+			if((*controls2)[i].D)
+            	exp = (double)((*controls2)[i].F) / (double)((*controls2)[i].D);
+			else
+				exp = (double)((*controls2)[i].F);
+            temp = pow(1-temp, exp);
+            (*controls2)[i].D = (*controls2)[i].D * (1 - temp);
+            (*controls2)[i].F = (*controls2)[column2].F;
+			if(((*controls2)[i].D == 0) && ((*controls2)[i].F != 0))
+				(*controls2)[i].D = 1;
+        }
+    }
+}
+
+
+void joincontrol(Control **controls1, Control **controls2, int column1, int column2, int num_columns1, int num_columns2){
+
+    int i, n, min, max;
+    double temp, exp;
+    int oldda = (*controls1)[column1].D;
+    int olddb = (*controls2)[column2].D;
+
+    if((*controls1)[column1].I > (*controls2)[column2].I){
+        (*controls2)[column2].I = (*controls1)[column1].I;
+        min = (*controls1)[column1].I;
+    }
+    else{
+        (*controls1)[column1].I = (*controls2)[column2].I;
+        min = (*controls2)[column2].I;
+    }
+    if((*controls1)[column1].U < (*controls2)[column2].U{
+        (*controls2)[column2].U = (*controls1)[column1].U;
+        max = (*controls1)[column1].U;
+    }
+    else{
+        (*controls1)[column1].U = (*controls2)[column2].U;
+        max = (*controls2)[column2].U;
+    }
+    n = max - min + 1;
+
+    (*controls1)[column1].F = (((*controls1)[column1].F) * ((*controls2)[column2].F))) / n;
+    (*controls2)[column2].F = (*controls1)[column1].F;
+    (*controls1)[column1].D = (((*controls1)[column1].D) * ((*controls2)[column2].D))) / n;
+    (*controls2)[column2].D = (*controls1)[column1].D;
+
+    for(i=0; i<num_columns1; i++){
+        if(i != column1){
+			if(oldda)
+            	temp = (double)((*controls1)[column1].D) / (double)oldda;
+			else
+				temp = (double)((*controls1)[column1].D);
+			if((*controls1)[i].D)
+            	exp = (double)((*controls1)[i].F) / (double)((*controls1)[i].D);
+			else
+				exp = (double)((*controls1)[i].F);
+            temp = pow(1-temp, exp);
+            (*controls1)[i].D = (*controls1)[i].D * (1 - temp);
+            (*controls1)[i].F = (*controls1)[column1].F;
+			if(((*controls1)[i].D == 0) && ((*controls1)[i].F != 0))
+				(*controls1)[i].D = 1;
+        }
+    }
+    for(i=0; i<num_columns2; i++){
+        if(i != column2){
+			if(olddb)
+            	temp = (double)((*controls2)[column2].D) / (double)olddb;
+			else
+				temp = (double)((*controls2)[column2].D);
+			if((*controls2)[i].D)
+            	exp = (double)((*controls2)[i].F) / (double)((*controls2)[i].D);
+			else
+				exp = (double)((*controls2)[i].F);
+            temp = pow(1-temp, exp);
+            (*controls2)[i].D = (*controls2)[i].D * (1 - temp);
+            (*controls2)[i].F = (*controls2)[column2].F;
+			if(((*controls2)[i].D == 0) && ((*controls2)[i].F != 0))
+				(*controls2)[i].D = 1;
+        }
+    }
 }
 
 
