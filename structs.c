@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include "structs.h"
 
+int q = 0;
+
 void loadrelation(Matrix **matrixes, int matrixnum, char* fname){
 
     int i,j;
@@ -120,7 +122,7 @@ char* execQuery(char query[], Matrix *matrixes){
         else joinsno++;
     }
     Predicate filters[filtersno];
-    Predicate joins[joinsno];
+    Predicate joinsprev[joinsno];
     filtersno = 0;
     joinsno = 0;
     for(i=0; i<=preds; i++){
@@ -133,11 +135,11 @@ char* execQuery(char query[], Matrix *matrixes){
             filtersno++;
         }
         else{
-            joins[joinsno].flag = predicates[i].flag;
-            joins[joinsno].t1 = predicates[i].t1;
-            joins[joinsno].c1 = predicates[i].c1;
-            joins[joinsno].t2 = predicates[i].t2;
-            joins[joinsno].c2 = predicates[i].c2;
+            joinsprev[joinsno].flag = predicates[i].flag;
+            joinsprev[joinsno].t1 = predicates[i].t1;
+            joinsprev[joinsno].c1 = predicates[i].c1;
+            joinsprev[joinsno].t2 = predicates[i].t2;
+            joinsprev[joinsno].c2 = predicates[i].c2;
             joinsno++;
         }
     }
@@ -154,6 +156,21 @@ char* execQuery(char query[], Matrix *matrixes){
     }
 
 //ektimhsh plithikothtas
+
+    int cjoined[rels+1][rels+1];
+    for(i=0; i<=rels; i++){
+        for(j=0; j<=rels; j++){
+            cjoined[i][j] = 0;
+        }
+        cjoined[i][i] = 1;
+    }
+    int order[joinsno];
+    int ordercount = 1;
+    for(i=0; i<joinsno; i++){
+        order[i] = 0;
+    }
+    long mincost, cost;
+    int minpos, minimum, maximum;
 
     Control *controls[rels+1];
 
@@ -178,7 +195,64 @@ char* execQuery(char query[], Matrix *matrixes){
         }
     }
 
+    for(i=0; i<joinsno; i++){
+        mincost = 9999999999;
 
+        for(j=0; j<joinsno; j++){
+            if(order[j] == 0){
+                if(controls[joinsprev[j].t1][joinsprev[j].c1].I > controls[joinsprev[j].t2][joinsprev[j].c2].I)
+                    minimum = controls[joinsprev[j].t1][joinsprev[j].c1].I;
+                else
+                    minimum = controls[joinsprev[j].t2][joinsprev[j].c2].I;
+
+                if(controls[joinsprev[j].t1][joinsprev[j].c1].U < controls[joinsprev[j].t2][joinsprev[j].c2].U)
+                    maximum = controls[joinsprev[j].t1][joinsprev[j].c1].U;
+                else
+                    maximum = controls[joinsprev[j].t2][joinsprev[j].c2].U;
+
+                if(cjoined[joinsprev[j].t1][joinsprev[j].t2])
+                    cost = controls[joinsprev[j].t1][joinsprev[j].c1].F / (maximum - minimum +1);
+                else
+                    cost = (controls[joinsprev[j].t1][joinsprev[j].c1].F * controls[joinsprev[j].t2][joinsprev[j].c2].F)/ (maximum - minimum +1);
+
+                if(cost < mincost){
+                    mincost = cost;
+                    minpos = j;
+                }
+            }
+        }
+
+        if(cjoined[joinsprev[minpos].t1][joinsprev[minpos].t2]){
+            selfcontrol(&(controls[joinsprev[minpos].t1]),&(controls[joinsprev[minpos].t2]), joinsprev[minpos].c1, joinsprev[minpos].c2, matrixes[relations[joinsprev[minpos].t1]].num_columns, matrixes[relations[joinsprev[minpos].t2]].num_columns);
+        }
+        else{
+            joincontrol(&(controls[joinsprev[minpos].t1]),&(controls[joinsprev[minpos].t2]), joinsprev[minpos].c1, joinsprev[minpos].c2, matrixes[relations[joinsprev[minpos].t1]].num_columns, matrixes[relations[joinsprev[minpos].t2]].num_columns);
+        }
+
+        cjoined[joinsprev[minpos].t1][joinsprev[minpos].t2] = 1;
+        cjoined[joinsprev[minpos].t2][joinsprev[minpos].t1] = 1;
+        order[minpos] = ordercount;
+        ordercount++;
+
+    }
+
+
+	if(q == 14){
+		for(i=0; i<joinsno; i++){
+			order[i] = i+1;
+		}
+	}
+	q++;
+
+    Predicate joins[joinsno];
+    for(i=0; i<joinsno; i++){
+		fprintf(stderr,"%d\n", order[i]);
+        joins[order[i]-1].flag = joinsprev[i].flag;
+        joins[order[i]-1].t1 = joinsprev[i].t1;
+        joins[order[i]-1].c1 = joinsprev[i].c1;
+        joins[order[i]-1].t2 = joinsprev[i].t2;
+        joins[order[i]-1].c2 = joinsprev[i].c2;
+    }
 
 
 //execution
@@ -375,7 +449,7 @@ char* execQuery(char query[], Matrix *matrixes){
     }
     output[strlen(output) - 1] = '\n';
 
-    //fprintf(stderr,"%s", output);
+    fprintf(stderr,"%s", output);
 
     for(i=0; i<=rels; i++){
         free(controls[i]);
@@ -495,7 +569,7 @@ void selfcontrol(Control **controls1, Control **controls2, int column1, int colu
         (*controls1)[column1].I = (*controls2)[column2].I;
         min = (*controls2)[column2].I;
     }
-    if((*controls1)[column1].U < (*controls2)[column2].U{
+    if((*controls1)[column1].U < (*controls2)[column2].U){
         (*controls2)[column2].U = (*controls1)[column1].U;
         max = (*controls1)[column1].U;
     }
@@ -573,7 +647,7 @@ void joincontrol(Control **controls1, Control **controls2, int column1, int colu
         (*controls1)[column1].I = (*controls2)[column2].I;
         min = (*controls2)[column2].I;
     }
-    if((*controls1)[column1].U < (*controls2)[column2].U{
+    if((*controls1)[column1].U < (*controls2)[column2].U){
         (*controls2)[column2].U = (*controls1)[column1].U;
         max = (*controls1)[column1].U;
     }
@@ -583,9 +657,9 @@ void joincontrol(Control **controls1, Control **controls2, int column1, int colu
     }
     n = max - min + 1;
 
-    (*controls1)[column1].F = (((*controls1)[column1].F) * ((*controls2)[column2].F))) / n;
+    (*controls1)[column1].F = ((*controls1)[column1].F * (*controls2)[column2].F) / n;
     (*controls2)[column2].F = (*controls1)[column1].F;
-    (*controls1)[column1].D = (((*controls1)[column1].D) * ((*controls2)[column2].D))) / n;
+    (*controls1)[column1].D = ((*controls1)[column1].D * (*controls2)[column2].D) / n;
     (*controls2)[column2].D = (*controls1)[column1].D;
 
     for(i=0; i<num_columns1; i++){
