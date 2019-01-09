@@ -13,6 +13,7 @@ int main(void){
     int i,j;
 
     Matrix *matrixes;
+    Index ***indexes;
     int matrixnum = 0;
     char filename[10];
     char *fname, *output;
@@ -32,6 +33,16 @@ int main(void){
         loadrelation(&matrixes,matrixnum,fname);
 
     }
+
+    indexes = malloc(matrixnum * sizeof(Index*));
+    for(i = 0; i < matrixnum; i++){
+        indexes[i] = malloc(matrixes[i].num_columns * sizeof(Index*));
+        for(j = 0; j < matrixes[i].num_columns; j++){
+            indexes[i][j] = NULL;
+        }
+    }
+
+
     buffer[0] = '\0';
 
     while(1){       //getting query batches
@@ -44,11 +55,20 @@ int main(void){
                 continue;
             }
 
-            output = execQuery(query, matrixes);
+            output = execQuery(query, matrixes, &indexes);
             strcat(buffer, output);
             free(output);
         }
     }
+
+    for(i = 0; i < matrixnum; i++){
+        for(j = 0; j < matrixes[i].num_columns; j++){
+            if(indexes[i][j] != NULL)
+                free(indexes[i][j]);
+        }
+        free(indexes[i]);
+    }
+    free(indexes);
 
     for(i = 0; i < matrixnum; i++){
         for(j = 0; j < matrixes[i].num_columns; j++){

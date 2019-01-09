@@ -84,7 +84,7 @@ void loadrelation(Matrix **matrixes, int matrixnum, char* fname){
     close(fd);
 }
 
-char* execQuery(char query[], Matrix *matrixes){
+char* execQuery(char query[], Matrix *matrixes, Index ****indexes){
 
     char *rel, *pred, *sum;
     int rels, preds, sums;

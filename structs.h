@@ -56,7 +56,7 @@ struct result {
 typedef struct result Result;
 
 void loadrelation(Matrix **matrixes, int matrixnum, char* fname);
-char* execQuery(char query[], Matrix *matrixes);
+char* execQuery(char query[], Matrix *matrixes, Index ****indexes);
 void equalfilter(Control **controls, int column, int constant, int num_columns);
 void unequalfilter(Control **controls, int column, int operand, int constant, int num_columns);
 void selfcontrol(Control **controls1, Control **controls2, int column1, int column2, int num_columns1, int num_columns2);
