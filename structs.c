@@ -84,7 +84,7 @@ void loadrelation(Matrix **matrixes, int matrixnum, char* fname){
     close(fd);
 }
 
-char* execQuery(char query[], Matrix *matrixes, Index ****indexes){
+char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
 
     char *rel, *pred, *sum;
     int rels, preds, sums;
@@ -316,24 +316,32 @@ char* execQuery(char query[], Matrix *matrixes, Index ****indexes){
         freebuff(res);
     }
 
+    int originalR, originalS;
+
     for(i=0; i<joinsno; i++){
 
-        if (flags[joins[i].t1] == 0)
+        if (flags[joins[i].t1] == 0){
             initrelation(&relR, matrixes[relations[joins[i].t1]].num_rows, matrixes[relations[joins[i].t1]].columns[joins[i].c1]);
+            originalR = 1;
+        }
         else{
             temp_col = realloc(temp_col, num_results[joins[i].t1]*sizeof(uint64_t));
             for(j=0; j<num_results[joins[i].t1]; j++)
                 temp_col[j] = matrixes[relations[joins[i].t1]].columns[joins[i].c1][results[joins[i].t1][j] - 1];
             initrelation(&relR, num_results[joins[i].t1], temp_col);
+            originalR = 0;
         }
 
-        if (flags[joins[i].t2] == 0)
+        if (flags[joins[i].t2] == 0){
             initrelation(&relS, matrixes[relations[joins[i].t2]].num_rows, matrixes[relations[joins[i].t2]].columns[joins[i].c2]);
+            originalS = 1;
+        }
         else{
             temp_col = realloc(temp_col, num_results[joins[i].t2]*sizeof(uint64_t));
             for(j=0; j<num_results[joins[i].t2]; j++)
                 temp_col[j] = matrixes[relations[joins[i].t2]].columns[joins[i].c2][results[joins[i].t2][j] - 1];
             initrelation(&relS, num_results[joins[i].t2], temp_col);
+            originalS = 0;
         }
 
         if(joined[joins[i].t1][joins[i].t2]){
@@ -342,7 +350,7 @@ char* execQuery(char query[], Matrix *matrixes, Index ****indexes){
         }
         else{
             //fprintf(stderr,"RADIX\n");
-            res = RadixHashJoin(&relR, &relS);
+            res = RadixHashJoin(&relR, &relS, &(indexes[relations[joins[i].t1]][joins[i].c1]), &(indexes[relations[joins[i].t2]][joins[i].c2]), originalR , originalS);
         }
 
         num_results[joins[i].t1] = getrescount(res);
@@ -724,7 +732,7 @@ int getrescount(Result *res){
 }
 
 
-Result* RadixHashJoin(Relation *relR, Relation *relS){
+Result* RadixHashJoin(Relation *relR, Relation *relS, Index **indexR, Index **indexS, int originalR, int originalS){
 
 //number of final bits that the hash function will use
     int n = 10;
@@ -770,6 +778,8 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
     }
 
 //Index build
+    Index *ind;
+    int original;
     int flag;
     if(R.num_tuples < S.num_tuples){    //the index will be built for the smallest array
         Min = &R;
@@ -777,6 +787,7 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
         psumMin = &psumR;
         psumMax = &psumS;
         flag = 0;
+        original = originalR;
     }
     else{
         Min = &S;
@@ -784,11 +795,40 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
         psumMin = &psumS;
         psumMax = &psumR;
         flag = 1;
+        original = originalS;
     }
 
-    Index *ind;
+    if(flag == 0){
+        if(original){
+            if((*indexR) != NULL){
+                ind = (*indexR);
+            }
+            else{
+                ind = createindex(Min, psumMin, buckets, h2margin);
+                (*indexR) = ind;
+            }
+        }
+        else{
+            ind = createindex(Min, psumMin, buckets, h2margin);
+        }
+    }
+    else{
+        if(original){
+            if((*indexS) != NULL){
+                ind = (*indexS);
+            }
+            else{
+                ind = createindex(Min, psumMin, buckets, h2margin);
+                (*indexS) = ind;
+            }
+        }
+        else{
+            ind = createindex(Min, psumMin, buckets, h2margin);
+        }
 
-    ind = createindex(Min, psumMin, buckets, h2margin);
+    }
+
+    //ind = createindex(Min, psumMin, buckets, h2margin);
 
 //Joins
 
@@ -796,10 +836,13 @@ Result* RadixHashJoin(Relation *relR, Relation *relS){
 
     res = join(ind, Max, psumMax, buckets, h2margin, Rrowids, Srowids, flag);
 
-    free(ind->Bucket);
-    free(ind->Chain);
-    free(ind->R.tuples);
-    free(ind);
+    if(original == 0){
+        free(ind->Bucket);
+        free(ind->Chain);
+        free(ind->R.tuples);
+        free(ind);
+    }
+
     free(Rrowids);
     free(Srowids);
     free(psumR.tuples);

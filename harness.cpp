@@ -264,6 +264,7 @@ int main(int argc, char *argv[]) {
       }
     }
 
+
     // Parse and compare the batch result
     stringstream result(output);
 
@@ -290,9 +291,11 @@ int main(int argc, char *argv[]) {
       ++query_no;
     }
   }
+    write(stdin_pipe[1], "End\n", 4);
 
   struct timeval end;
   gettimeofday(&end, NULL);
+
 
   if (1) {
     // Output the elapsed time in milliseconds

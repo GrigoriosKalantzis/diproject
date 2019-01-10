@@ -48,6 +48,8 @@ int main(void){
     while(1){       //getting query batches
         if(fgets(query, 100, stdin) != NULL){
 
+            if(strcmp(query,"End\n") == 0) break;
+
             if(strcmp(query,"F\n") == 0){
                 write(1, buffer, strlen(buffer));
                 buffer[0] = '\0';
@@ -55,7 +57,7 @@ int main(void){
                 continue;
             }
 
-            output = execQuery(query, matrixes, &indexes);
+            output = execQuery(query, matrixes, indexes);
             strcat(buffer, output);
             free(output);
         }
@@ -63,8 +65,12 @@ int main(void){
 
     for(i = 0; i < matrixnum; i++){
         for(j = 0; j < matrixes[i].num_columns; j++){
-            if(indexes[i][j] != NULL)
+            if(indexes[i][j] != NULL){
+                free(indexes[i][j]->Bucket);
+                free(indexes[i][j]->Chain);
+                free(indexes[i][j]->R.tuples);
                 free(indexes[i][j]);
+            }
         }
         free(indexes[i]);
     }

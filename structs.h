@@ -56,14 +56,14 @@ struct result {
 typedef struct result Result;
 
 void loadrelation(Matrix **matrixes, int matrixnum, char* fname);
-char* execQuery(char query[], Matrix *matrixes, Index ****indexes);
+char* execQuery(char query[], Matrix *matrixes, Index ***indexes);
 void equalfilter(Control **controls, int column, int constant, int num_columns);
 void unequalfilter(Control **controls, int column, int operand, int constant, int num_columns);
 void selfcontrol(Control **controls1, Control **controls2, int column1, int column2, int num_columns1, int num_columns2);
 void joincontrol(Control **controls1, Control **controls2, int column1, int column2, int num_columns1, int num_columns2);
 void initrelation(Relation *rel, int rows, uint64_t *values);
 int getrescount(Result *res);
-Result* RadixHashJoin(Relation *relR, Relation *relS);
+Result* RadixHashJoin(Relation *relR, Relation *relS, Index **indexR, Index **indexS, int originalR, int originalS);
 Result* Filter(Relation *rel, int operand, int constant);
 Result* SelfJoin(Relation *relR, Relation *relS);
 Relation initarray(Relation *rel, int *rowids, double buckets);
