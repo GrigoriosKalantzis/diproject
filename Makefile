@@ -8,10 +8,10 @@ CC2 = g++
 FLAGS	= -g -c -Wall
 
 all: $(OBJS1) $(OBJS2) $(OBJS3)
-	$(CC1) -Wall $(OBJS1) $(OBJS2) -o $(OUT1) -lm
+	$(CC1) -Wall $(OBJS1) $(OBJS2) -o $(OUT1) -lm -pthread
 	$(CC2) -Wall $(OBJS3) -o $(OUT2)
 structs.o: structs.c
-	$(CC1) $(FLAGS) structs.c
+	$(CC1) $(FLAGS) structs.c -pthread
 main.o: main.c
 	$(CC1) $(FLAGS) main.c
 harness.o: harness.cpp

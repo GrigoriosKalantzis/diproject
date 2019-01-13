@@ -6,9 +6,20 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <pthread.h>
 #include "structs.h"
 
 int q = 0;
+
+int histthreadarr[THREADS];
+
+void* histthread(void *in){
+    int *number = in;
+    fprintf(stderr,"THREAD %d\n", (*number));
+
+    pthread_exit((void *) 47);
+}
+
 
 void loadrelation(Matrix **matrixes, int matrixnum, char* fname){
 
@@ -246,7 +257,7 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
 
     Predicate joins[joinsno];
     for(i=0; i<joinsno; i++){
-		fprintf(stderr,"%d\n", order[i]);
+		//fprintf(stderr,"%d\n", order[i]);
         joins[order[i]-1].flag = joinsprev[i].flag;
         joins[order[i]-1].t1 = joinsprev[i].t1;
         joins[order[i]-1].c1 = joinsprev[i].c1;
@@ -735,13 +746,15 @@ int getrescount(Result *res){
 Result* RadixHashJoin(Relation *relR, Relation *relS, Index **indexR, Index **indexS, int originalR, int originalS){
 
 //number of final bits that the hash function will use
-    int n = 10;
+    int n = N;
+//number of threads
+    int t = THREADS;
 //margin of hash2 values
     int h2margin = 101;
 
     double buckets = pow(2.0, (double)n);
 
-    int i;
+    int i, j, status;
 
     int* Rrowids;
     int* Srowids;
@@ -756,6 +769,18 @@ Result* RadixHashJoin(Relation *relR, Relation *relS, Index **indexR, Index **in
 //Initial arrays
     R = initarray(relR, Rrowids, buckets);
     S = initarray(relS, Srowids, buckets);
+
+
+    pthread_t histthreads[t];
+    for(i = 0; i < t; i++){
+        histthreadarr[i] = i;
+        pthread_create(&(histthreads[i]), NULL, histthread, &(histthreadarr[i]));
+    }
+    for(j = 0; j < t; j++){
+        pthread_join(histthreads[j], (void **)&status);
+        fprintf(stderr,"THREAD JOIN %d\n",j);
+    }
+
 
 //Histograms
     histR = inithist(R, buckets);
