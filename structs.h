@@ -57,6 +57,18 @@ struct result {
 };
 typedef struct result Result;
 
+struct histstruct{
+    Relation *R;
+    int startR;
+    int endR;
+    Relation *S;
+    int startS;
+    int endS;
+    Relation *histR;
+    Relation *histS;
+};
+typedef struct histstruct Histstruct;
+
 void loadrelation(Matrix **matrixes, int matrixnum, char* fname);
 char* execQuery(char query[], Matrix *matrixes, Index ***indexes);
 void equalfilter(Control **controls, int column, int constant, int num_columns);

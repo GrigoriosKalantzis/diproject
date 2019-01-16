@@ -11,11 +11,29 @@
 
 int q = 0;
 
-int histthreadarr[THREADS];
+pthread_mutex_t histmutexR = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t histmutexS = PTHREAD_MUTEX_INITIALIZER;
+
 
 void* histthread(void *in){
-    int *number = in;
-    fprintf(stderr,"THREAD %d\n", (*number));
+    Histstruct *hstruct = in;
+    int k,m;
+    for(k = hstruct->startR; k < hstruct->endR; k++){
+
+        pthread_mutex_lock(&histmutexR);
+        m = hstruct->R->tuples[k].key;
+        hstruct->histR->tuples[m].payload++;
+        pthread_mutex_unlock(&histmutexR);
+
+    }
+    for(k = hstruct->startS; k < hstruct->endS; k++){
+
+        pthread_mutex_lock(&histmutexS);
+        m = hstruct->S->tuples[k].key;
+        hstruct->histS->tuples[m].payload++;
+        pthread_mutex_unlock(&histmutexS);
+
+    }
 
     pthread_exit((void *) 47);
 }
@@ -770,11 +788,45 @@ Result* RadixHashJoin(Relation *relR, Relation *relS, Index **indexR, Index **in
     R = initarray(relR, Rrowids, buckets);
     S = initarray(relS, Srowids, buckets);
 
+//Histograms
+    histR.num_tuples = buckets;
+    histR.tuples = malloc(histR.num_tuples * sizeof(Tuple));
+    for(i = 0; i < buckets; i++){
+        histR.tuples[i].key = i;            //values of hash keys
+        histR.tuples[i].payload = 0;        //initializing counter of each value
+    }
+
+    histS.num_tuples = buckets;
+    histS.tuples = malloc(histS.num_tuples * sizeof(Tuple));
+    for(i = 0; i < buckets; i++){
+        histS.tuples[i].key = i;            //values of hash keys
+        histS.tuples[i].payload = 0;        //initializing counter of each value
+    }
+
+    int startR = 0;
+    int startS = 0;
+    int marginR = R.num_tuples / t;
+    int marginS = S.num_tuples / t;
+
+    Histstruct histstructarr[t];
+    for(i = 0; i < t; i++){
+        histstructarr[i].R = &R;
+        histstructarr[i].S = &S;
+        histstructarr[i].startR = startR;
+        histstructarr[i].startS = startS;
+        histstructarr[i].endR = startR + marginR;
+        histstructarr[i].endS = startS + marginS;
+        histstructarr[i].histR = &histR;
+        histstructarr[i].histS = &histS;
+        startR = startR + marginR;
+        startS = startS + marginS;
+    }
+    histstructarr[t-1].endR = R.num_tuples;
+    histstructarr[t-1].endS = S.num_tuples;
 
     pthread_t histthreads[t];
     for(i = 0; i < t; i++){
-        histthreadarr[i] = i;
-        pthread_create(&(histthreads[i]), NULL, histthread, &(histthreadarr[i]));
+        pthread_create(&(histthreads[i]), NULL, histthread, &(histstructarr[i]));
     }
     for(j = 0; j < t; j++){
         pthread_join(histthreads[j], (void **)&status);
@@ -783,8 +835,8 @@ Result* RadixHashJoin(Relation *relR, Relation *relS, Index **indexR, Index **in
 
 
 //Histograms
-    histR = inithist(R, buckets);
-    histS = inithist(S, buckets);
+    //histR = inithist(R, buckets);
+    //histS = inithist(S, buckets);
 
 //Cumulative histograms
     psumR = initpsum(histR, buckets);
