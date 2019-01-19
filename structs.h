@@ -4,7 +4,7 @@
 #include <stdint.h>
 #define BUFFSIZE 131072     //tuples that fit in 1MB buffer
 #define N 10                //N last bits are hash key
-#define THREADS 8
+#define THREADS 4
 
 struct predicate{
     int flag;       //0 for join 1 for filter
