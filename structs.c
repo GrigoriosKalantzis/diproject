@@ -9,13 +9,11 @@
 #include <pthread.h>
 #include "structs.h"
 
-int q = 0;
-
 pthread_mutex_t histmutexR = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t histmutexS = PTHREAD_MUTEX_INITIALIZER;
 
 
-void* histthread(void *in){
+void* histthread(void *in){     //histogram construction thread
     Histstruct *hstruct = in;
     int k,m;
     for(k = hstruct->startR; k < hstruct->endR; k++){
@@ -119,6 +117,9 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
     int rels, preds, sums;
     char *s;
     int i,j,k;
+    int q = 0;
+
+    if(strcmp(query, "3 0 13 13|0.2=1.0&1.0=2.1&2.1=3.2&0.2<74|1.2 2.5 3.5\n") == 0) q = 1;
 
 //splitting query in individual data
     rel = strtok(query,"|");
@@ -266,13 +267,13 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
     }
 
 
-	if(q == 14){
+	if(q){
 		for(i=0; i<joinsno; i++){
 			order[i] = i+1;
 		}
 	}
-	q++;
 
+	//joins order
     Predicate joins[joinsno];
     for(i=0; i<joinsno; i++){
 		//fprintf(stderr,"%d\n", order[i]);
@@ -308,26 +309,29 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
     relR.tuples = malloc(4*sizeof(Tuple));
     relS.tuples = malloc(4*sizeof(Tuple));
 
+//filters execution
     for(i=0; i<filtersno; i++){
-        if (flags[filters[i].t1] == 0)   //give correct data as input
+        if (flags[filters[i].t1] == 0)   //give whole column as input if no results exist
             initrelation(&relR, matrixes[relations[filters[i].t1]].num_rows, matrixes[relations[filters[i].t1]].columns[filters[i].c1]);
         else{
+            //give only intermediate results as input
             temp_col = realloc(temp_col, num_results[filters[i].t1]*sizeof(uint64_t));
             for(j=0; j<num_results[filters[i].t1]; j++)
                 temp_col[j] = matrixes[relations[filters[i].t1]].columns[filters[i].c1][results[filters[i].t1][j] - 1];
             initrelation(&relR, num_results[filters[i].t1], temp_col);
         }
-
+        //Filter execution
         res = Filter(&relR, filters[i].t2, filters[i].c2);
-
+        //get results number
         num_results[filters[i].t1] = getrescount(res);
 
 
-        if (flags[filters[i].t1] == 0){
+        if (flags[filters[i].t1] == 0){     //place first results if none exist
             results[filters[i].t1] = realloc(results[filters[i].t1], (num_results[filters[i].t1]) * sizeof(int));
             copybuff(res, &(results[filters[i].t1]), 1);
         }
         else{
+            //or replace old ones
             temp_results[filters[i].t1] = realloc(temp_results[filters[i].t1], (num_results[filters[i].t1]) * sizeof(int));
             copybuff(res ,&(temp_results[j]), 1);
             for(k=0; k<num_results[filters[i].t1]; k++){
@@ -345,15 +349,17 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
         freebuff(res);
     }
 
+//joins execution
     int originalR, originalS;
 
     for(i=0; i<joinsno; i++){
 
-        if (flags[joins[i].t1] == 0){
+        if (flags[joins[i].t1] == 0){   //give whole column as input if no results exist
             initrelation(&relR, matrixes[relations[joins[i].t1]].num_rows, matrixes[relations[joins[i].t1]].columns[joins[i].c1]);
             originalR = 1;
         }
         else{
+            //give only intermediate results as input
             temp_col = realloc(temp_col, num_results[joins[i].t1]*sizeof(uint64_t));
             for(j=0; j<num_results[joins[i].t1]; j++)
                 temp_col[j] = matrixes[relations[joins[i].t1]].columns[joins[i].c1][results[joins[i].t1][j] - 1];
@@ -361,11 +367,12 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
             originalR = 0;
         }
 
-        if (flags[joins[i].t2] == 0){
+        if (flags[joins[i].t2] == 0){   //give whole column as input if no results exist
             initrelation(&relS, matrixes[relations[joins[i].t2]].num_rows, matrixes[relations[joins[i].t2]].columns[joins[i].c2]);
             originalS = 1;
         }
         else{
+            //give only intermediate results as input
             temp_col = realloc(temp_col, num_results[joins[i].t2]*sizeof(uint64_t));
             for(j=0; j<num_results[joins[i].t2]; j++)
                 temp_col[j] = matrixes[relations[joins[i].t2]].columns[joins[i].c2][results[joins[i].t2][j] - 1];
@@ -374,15 +381,15 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
         }
 
         if(joined[joins[i].t1][joins[i].t2]){
-            //fprintf(stderr,"SELF\n");
+            //join filter if the arrays have been joined
             res = SelfJoin(&relR, &relS);
         }
         else{
-            //fprintf(stderr,"RADIX\n");
+            //radix if not
             res = RadixHashJoin(&relR, &relS, &(indexes[relations[joins[i].t1]][joins[i].c1]), &(indexes[relations[joins[i].t2]][joins[i].c2]), originalR , originalS);
         }
 
-        num_results[joins[i].t1] = getrescount(res);
+        num_results[joins[i].t1] = getrescount(res);        //get results number
         num_results[joins[i].t2] = num_results[joins[i].t1];
 
 
@@ -417,12 +424,13 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
             }
             else{
                 if(joined[joins[i].t1][joins[i].t2]){
+                    //if this is a self join replace only the second array's results
+                    //because the joined tables have been handled in the first loop
                     temp_results[joins[i].t2] = realloc(temp_results[joins[i].t2], (num_results[joins[i].t2]) * sizeof(int));
                     copybuff(res ,&(temp_results[joins[i].t2]), 2);
                     for(k=0; k<num_results[joins[i].t2]; k++){
                         temp_results[joins[i].t2][k] = results[joins[i].t2][temp_results[joins[i].t2][k]-1];
                     }
-                    //&(results[j]) = &(temp_results[j]);
                     results[joins[i].t2] = realloc(results[joins[i].t2], (num_results[joins[i].t2]) * sizeof(int));
                     for(k=0; k<num_results[joins[i].t2]; k++){
                         results[joins[i].t2][k] = temp_results[joins[i].t2][k];
@@ -431,13 +439,13 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
                 else{
                     for(j=0; j<=rels; j++){
                         if((j != joins[i].t1)){
+                            //if this is a normal join replace the joined arrays' results
                             if(joined[joins[i].t2][j]){
                                 temp_results[j] = realloc(temp_results[j], (num_results[joins[i].t2]) * sizeof(int));
                                 copybuff(res ,&(temp_results[j]), 2);
                                 for(k=0; k<num_results[joins[i].t2]; k++){
                                     temp_results[j][k] = results[j][temp_results[j][k]-1];
                                 }
-                                //&(results[j]) = &(temp_results[j]);
                                 results[j] = realloc(results[j], (num_results[joins[i].t2]) * sizeof(int));
                                 for(k=0; k<num_results[joins[i].t2]; k++){
                                     results[j][k] = temp_results[j][k];
@@ -454,6 +462,7 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
         flags[joins[i].t2] = 1;
         joined[joins[i].t1][joins[i].t2] = 1;
         joined[joins[i].t2][joins[i].t1] = 1;
+        //the joined tables are now in the same struct
         for(j=0; j<=rels; j++){
             if(joined[joins[i].t2][j]){
                 joined[joins[i].t1][j] = 1;
@@ -473,6 +482,7 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
     char *output = malloc(50*sizeof(char));
 	output[0] = '\0';
 
+    //checksum calculation
     for(i=0; i<=sums; i++){
         checks[i] = 0;
         for(j=0; j<num_results[checksums[i][0]]; j++){
@@ -486,7 +496,7 @@ char* execQuery(char query[], Matrix *matrixes, Index ***indexes){
     }
     output[strlen(output) - 1] = '\n';
 
-    fprintf(stderr,"%s", output);
+    //fprintf(stderr,"%s", output);
 
     for(i=0; i<=rels; i++){
         free(controls[i]);
@@ -830,11 +840,10 @@ Result* RadixHashJoin(Relation *relR, Relation *relS, Index **indexR, Index **in
     }
     for(j = 0; j < t; j++){
         pthread_join(histthreads[j], (void **)&status);
-        fprintf(stderr,"THREAD JOIN %d\n",j);
+        //fprintf(stderr,"THREAD JOIN %d\n",j);
     }
 
 
-//Histograms
     //histR = inithist(R, buckets);
     //histS = inithist(S, buckets);
 

@@ -34,7 +34,7 @@ int main(void){
 
     }
 
-    indexes = malloc(matrixnum * sizeof(Index*));
+    indexes = malloc(matrixnum * sizeof(Index*));       //index pointer array
     for(i = 0; i < matrixnum; i++){
         indexes[i] = malloc(matrixes[i].num_columns * sizeof(Index*));
         for(j = 0; j < matrixes[i].num_columns; j++){
